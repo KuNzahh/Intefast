@@ -27,9 +27,10 @@ $result_sik = mysqli_query($conn, $sql_sik);
 $data_sik = mysqli_fetch_all($result_sik, MYSQLI_ASSOC);
 
 // Ambil data pengajuan STTP
-$sql_sttp = "SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, s.nama_paslon, s.nama_kampanye, s.progres, s.id_sttp
+$sql_sttp = "SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, s.nama_paslon, k.nama_kampanye, s.progres, s.id_sttp
              FROM sttp s
              JOIN users u ON s.user_id = u.id_user
+             JOIN kampanye k ON s.kampanye_id = k.id_kampanye
              ORDER BY s.tanggal_pengajuan DESC";
 $result_sttp = mysqli_query($conn, $sql_sttp);
 $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
@@ -179,7 +180,7 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
                                                         <td class="text-center">SIK</td>
                                                         <td><?php echo htmlspecialchars($sik['nama_pemohon']); ?></td>
                                                         <td class="text-center"><?php echo date('d-m-Y', strtotime($sik['tanggal_pengajuan'])); ?></td>
-                                                        <td>Paslon: <?php echo htmlspecialchars($sik['nama_instansi']); ?><br>Kampanye: <?php echo htmlspecialchars($sik['penanggung_jawab']); ?></td>
+                                                        <td>Paslon: <?php echo htmlspecialchars($sik['nama_instansi']); ?><br>Penanggung Jawab: <?php echo htmlspecialchars($sik['penanggung_jawab']); ?></td>
                                                         <td class="text-center">
                                                             <?php
                                                             $progres = $sik['progres'];

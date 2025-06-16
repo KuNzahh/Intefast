@@ -169,13 +169,15 @@ class PDF extends FPDF
                 s.nama_paslon,
                 s.alamat,
                 s.penanggung_jawab,
-                s.nama_kampanye,
+                s.kampanye_id,
                 s.tgl_kampanye,
                 s.tempat,
+                k.nama_kecamatan,
                 s.jumlah_peserta,
                 s.nama_jurkam,
                 s.memperhatikan
             FROM sttp s
+                LEFT JOIN kecamatan k ON s.kecamatan_id = k.id_kecamatan
             WHERE s.id_sttp = ?
         ";
 
@@ -242,17 +244,36 @@ class PDF extends FPDF
 
         // Activity information
         $this->SetFont('Arial', '', 11);
+
+        // Ambil nama_kampanye dari tabel kampanye berdasarkan kampanye_id
+        $nama_kampanye = 'N/A';
+        $nama_kampanye_db = null; // Initialize the variable before use
+        if (!empty($row['kampanye_id'])) {
+            $query_kampanye = "SELECT nama_kampanye FROM kampanye WHERE id_kampanye = ?";
+            $stmt_kampanye = $this->conn->prepare($query_kampanye);
+            if ($stmt_kampanye) {
+                $stmt_kampanye->bind_param("i", $row['kampanye_id']);
+                $stmt_kampanye->execute();
+                $stmt_kampanye->bind_result($nama_kampanye_db);
+                if ($stmt_kampanye->fetch()) {
+                    $nama_kampanye = $nama_kampanye_db;
+                }
+                $stmt_kampanye->close();
+            }
+        }
+
+
         $catatan_texts = [
             "Kepada" => "",
             "1.Nama Paslon" => $row['nama_paslon'] ?? 'N/A', // Use N/A if row is null
             "2.Alamat" => $row['alamat'] ?? 'N/A',
             "3.Penanggung Jawab" => $row['penanggung_jawab'] ?? 'N/A',
             "Untuk Menyelenggarakan Kegiatan sebagai berikut :" => "",
-            "4. Bentuk Kampanye" => $row['nama_kampanye'] ?? 'N/A',
-            "5. Waktu" => $row['tgl_kampanye'] ?? 'N/A',
-            "6. Tempat" => $row['tempat'] ?? 'N/A',
+            "4. Bentuk Kampanye" => $nama_kampanye,
+            "5. Waktu" => isset($row['tgl_kampanye']) && $row['tgl_kampanye'] != '' ? date('d F Y', strtotime($row['tgl_kampanye'])) : 'N/A',
+            "6. Tempat" => $row['tempat'] . ', Kec.' . $row['nama_kecamatan'],
             "7. Jumlah Peserta" => $row['jumlah_peserta'] ?? 'N/A',
-            "8. Nama Jurkam" => $row['nama_jurkam'] ?? 'N/A',
+            "8. Nama Jurkam"  => $row['nama_jurkam'] ?? 'N/A',
             "9. Penggunaan kendaraan    " => "    (lihat lampiran)",
             "10.Penggunaan alat peraga  " => "    (lihat lampiran)",
         ];

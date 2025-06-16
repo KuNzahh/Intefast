@@ -2,6 +2,25 @@
 session_start();
 include '../include/koneksi.php';
 
+if (!isset($_SESSION['user_id'])) {
+    echo "<script>alert('Anda belum login.'); window.location.href = '../login.php';</script>";
+    exit();
+}
+
+$id_sttp = isset($_GET['id_sttp']) ? intval($_GET['id_sttp']) : 0;
+if ($id_sttp <= 0) {
+    echo "ID STTP tidak valid.";
+    exit;
+}
+
+$query = mysqli_query($conn, "SELECT * FROM sttp WHERE id_sttp = '$id_sttp'");
+$data = mysqli_fetch_assoc($query);
+
+if (!$data) {
+    echo "Data tidak ditemukan.";
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_sttp = mysqli_real_escape_string($conn, $_POST['id_sttp'] ?? '');
     $user_id = $_SESSION['user_id'];
@@ -70,60 +89,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 )";
     }
 
-    // Jalankan query dan simpan hasilnya di $run
     $run = mysqli_query($conn, $sql);
 
-    $_SESSION[$run ? 'success' : 'error'] = $run
-        ? (!empty($id_sttp) ? 'Data berhasil di-update' : 'Data berhasil dikirim')
-        : (!empty($id_sttp) ? 'Gagal update data' : 'Gagal tambah data');
-
-    header('Location: statushistory.php'); // <--- ini diganti
-    exit();
-}
-
-// Handle delete
-if (isset($_GET['hapus'])) {
-    $id_sttp = mysqli_real_escape_string($conn, $_GET['hapus']);
-    $del = mysqli_query($conn, "DELETE FROM sttp WHERE id_sttp='$id_sttp'");
-    $_SESSION[$del ? 'success' : 'error'] = $del
-        ? 'Data berhasil dihapus' : 'Gagal hapus data';
-    header('Location: statushistory.php');
-    exit();
+    if ($run) {
+        $_SESSION['success'] = 'Data berhasil diperbarui.';
+        header('Location: statushistory.php');
+        exit();
+    } else {
+        $_SESSION['error'] = 'Gagal memperbarui data: ' . mysqli_error($conn);
+    }
 }
 ?>
-
-
 <!DOCTYPE html>
 <html lang="en" dir="ltr" data-nav-layout="horizontal" data-theme-mode="light" data-header-styles="light"
     data-menu-styles="dark" data-toggled="close">
-
 <head>
     <?php include 'head.php'; ?>
-    <title>Dashboard - <?php echo $_SESSION['user_name']; ?></title>
+    <title>Dashboard - <?= htmlspecialchars($_SESSION['username']) ?></title>
 </head>
-
 <body>
-    <!-- Loader -->
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <?= $_SESSION['success']; ?>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <?php unset($_SESSION['success']); ?>
+    <?php elseif (isset($_SESSION['error'])): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?= $_SESSION['error']; ?>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <?php unset($_SESSION['error']); ?>
+    <?php endif; ?>
+
     <div id="loader">
         <img src="../assets/images/media/media-79.svg" alt="">
     </div>
-    <!-- Loader -->
-
     <div class="page">
-        <!-- app-header -->
         <header class="app-header">
-
-            <!-- Start::main-header-container -->
             <div class="main-header-container container-fluid">
                 <?php include 'container.php'; ?>
             </div>
-            <!-- End::main-header-container -->
         </header>
-        <!-- /app-header -->
-        <!-- Start::app-sidebar -->
         <aside class="app-sidebar sticky" id="sidebar">
-
-            <!-- Start::main-sidebar-header -->
             <div class="main-sidebar-header">
                 <a href="index.html" class="header-logo">
                     <img src="../assets/images/brand-logos/desktop-white.png" class="desktop-white" alt="logo">
@@ -134,43 +146,28 @@ if (isset($_GET['hapus'])) {
                     <img src="../assets/images/brand-logos/desktop-dark.png" class="desktop-dark" alt="logo">
                 </a>
             </div>
-            <!-- End::main-sidebar-header -->
-
-            <!-- Start::main-sidebar -->
             <div class="main-sidebar" id="sidebar-scroll">
-
-                <!-- Start::nav -->
                 <nav class="main-menu-container nav nav-pills flex-column sub-open">
                     <ul class="main-menu">
-                        <!-- Start::slide__category -->
                         <li class="slide__category"><span class="category-name">Menu Utama</span></li>
-                        <!-- End::slide__category -->
-
-                        <!-- Dashboard -->
                         <li class="slide">
                             <a href="dashboard.php" class="side-menu__item">
                                 <i class="ti-home side-menu__icon"></i>
                                 <span class="side-menu__label">Dashboard</span>
                             </a>
                         </li>
-
-                        <!-- Buat Permohonan -->
                         <li class="slide">
                             <a href="pelayanan.php" class="side-menu__item">
                                 <i class="ti-file side-menu__icon"></i>
                                 <span class="side-menu__label">Pelayanan</span>
                             </a>
                         </li>
-
-                        <!-- Riwayat Permohonan -->
                         <li class="slide">
                             <a href="statushistory.php" class="side-menu__item">
                                 <i class="ti-list side-menu__icon"></i>
                                 <span class="side-menu__label">Status dan Histroy</span>
                             </a>
                         </li>
-
-                        <!-- Bantuan -->
                         <li class="slide">
                             <a href="survey.php" class="side-menu__item">
                                 <i class="ti-help-alt side-menu__icon"></i>
@@ -179,53 +176,44 @@ if (isset($_GET['hapus'])) {
                         </li>
                     </ul>
                 </nav>
-                <!-- End::nav -->
             </div>
-            <!-- End::main-sidebar -->
         </aside>
-        <!-- End::app-sidebar -->
-
-        <!-- Start::app-content -->
         <div class="main-content app-content">
             <div class="container-fluid">
-                <!-- Start::page-header -->
                 <div class="d-md-flex d-block align-items-center justify-content-between page-header-breadcrumb">
                     <div>
                         <h2 class="main-content-title fs-24 mb-1">Pelayanan</h2>
                         <ol class="breadcrumb mb-0">
                             <li class="breadcrumb-item"><a href="dashboard.php">Home</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Pelayanan / Ajuan STTP</li>
+                            <li class="breadcrumb-item active" aria-current="page">Pelayanan / Update STTP</li>
                         </ol>
                     </div>
                 </div>
-                <!-- End::page-header -->
-
-                <!-- Start::Formulir Pengajuan STTP -->
                 <div class="row row-sm">
                     <div class="container-fluid">
                         <div class="row">
                             <div class="col-12">
                                 <div class="card card-table mb-0">
                                     <div class="card-body">
-                                        <h4 class="card-title mb-4">Formulir Pengajuan STTP</h4>
+                                        <h4 class="card-title mb-4">Formulir Update STTP</h4>
                                         <form method="POST" action="" enctype="multipart/form-data">
-                                            <input type="hidden" name="id_sttp" value="<?php echo $_GET['id_sttp'] ?? ''; ?>">
-                                            <input type="hidden" name="user_id" value="<?php echo $_SESSION['user_id']; ?>">
+                                            <input type="hidden" name="id_sttp" value="<?php echo htmlspecialchars($data['id_sttp']); ?>">
+                                            <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($_SESSION['user_id']); ?>">
 
                                             <div class="row g-3">
                                                 <div class="col-md-6">
                                                     <label for="nama_paslon" class="form-label">Nama Pasangan Calon</label>
-                                                    <input type="text" class="form-control" id="nama_paslon" name="nama_paslon" required>
+                                                    <input type="text" class="form-control" id="nama_paslon" name="nama_paslon" required value="<?php echo htmlspecialchars($data['nama_paslon']); ?>">
                                                 </div>
 
                                                 <div class="col-md-6">
                                                     <label for="penanggung_jawab" class="form-label">Penanggung Jawab</label>
-                                                    <input type="text" class="form-control" id="penanggung_jawab" name="penanggung_jawab" required>
+                                                    <input type="text" class="form-control" id="penanggung_jawab" name="penanggung_jawab" required value="<?php echo htmlspecialchars($data['penanggung_jawab']); ?>">
                                                 </div>
 
                                                 <div class="col-md-12">
                                                     <label for="alamat" class="form-label">Alamat Lengkap</label>
-                                                    <textarea class="form-control" id="alamat" name="alamat" rows="2" required></textarea>
+                                                    <textarea class="form-control" id="alamat" name="alamat" rows="2" required><?php echo htmlspecialchars($data['alamat']); ?></textarea>
                                                 </div>
 
                                                 <div class="col-md-6">
@@ -235,7 +223,8 @@ if (isset($_GET['hapus'])) {
                                                         <?php
                                                         $queryKampanye = mysqli_query($conn, "SELECT * FROM kampanye ORDER BY nama_kampanye ASC");
                                                         while ($row = mysqli_fetch_assoc($queryKampanye)) {
-                                                            echo '<option value="' . $row['id_kampanye'] . '">' . $row['nama_kampanye'] . '</option>';
+                                                            $selected = ($row['id_kampanye'] == $data['kampanye_id']) ? 'selected' : '';
+                                                            echo '<option value="' . htmlspecialchars($row['id_kampanye']) . '" ' . $selected . '>' . htmlspecialchars($row['nama_kampanye']) . '</option>';
                                                         }
                                                         ?>
                                                     </select>
@@ -243,12 +232,12 @@ if (isset($_GET['hapus'])) {
 
                                                 <div class="col-md-6">
                                                     <label for="tgl_kampanye" class="form-label">Tanggal Kampanye</label>
-                                                    <input type="date" class="form-control" id="tgl_kampanye" name="tgl_kampanye" required>
+                                                    <input type="date" class="form-control" id="tgl_kampanye" name="tgl_kampanye" required value="<?php echo htmlspecialchars($data['tgl_kampanye']); ?>">
                                                 </div>
 
                                                 <div class="col-md-6">
                                                     <label for="tempat" class="form-label">Tempat</label>
-                                                    <input type="text" class="form-control" id="tempat" name="tempat" required>
+                                                    <input type="text" class="form-control" id="tempat" name="tempat" required value="<?php echo htmlspecialchars($data['tempat']); ?>">
                                                 </div>
 
                                                 <div class="col-md-6">
@@ -258,7 +247,8 @@ if (isset($_GET['hapus'])) {
                                                         <?php
                                                         $queryKecamatan = mysqli_query($conn, "SELECT * FROM kecamatan");
                                                         while ($row = mysqli_fetch_assoc($queryKecamatan)) {
-                                                            echo '<option value="' . $row['id_kecamatan'] . '">' . $row['nama_kecamatan'] . '</option>';
+                                                            $selected = ($row['id_kecamatan'] == $data['kecamatan_id']) ? 'selected' : '';
+                                                            echo '<option value="' . htmlspecialchars($row['id_kecamatan']) . '" ' . $selected . '>' . htmlspecialchars($row['nama_kecamatan']) . '</option>';
                                                         }
                                                         ?>
                                                     </select>
@@ -266,63 +256,44 @@ if (isset($_GET['hapus'])) {
 
                                                 <div class="col-md-6">
                                                     <label for="jumlah_peserta" class="form-label">Jumlah Peserta</label>
-                                                    <input type="text" class="form-control" id="jumlah_peserta" name="jumlah_peserta" required>
+                                                    <input type="text" class="form-control" id="jumlah_peserta" name="jumlah_peserta" required value="<?php echo htmlspecialchars($data['jumlah_peserta']); ?>">
                                                 </div>
 
                                                 <div class="col-md-6">
                                                     <label for="nama_jurkam" class="form-label">Nama Juru Kamera</label>
-                                                    <input type="text" class="form-control" id="nama_jurkam" name="nama_jurkam" required>
+                                                    <input type="text" class="form-control" id="nama_jurkam" name="nama_jurkam" required value="<?php echo htmlspecialchars($data['nama_jurkam']); ?>">
                                                 </div>
 
-                                                <div class="col-md-6">
-                                                    <label for="memperhatikan" class="form-label">Memperhatikan</label>
-                                                    <input type="text" class="form-control" id="memperhatikan" name="memperhatikan" required>
-                                                </div>
+                                                <input type="hidden" id="memperhatikan" name="memperhatikan" value="<?php echo htmlspecialchars($data['memperhatikan']); ?>">
 
-                                                <div class="col-md-6">
-                                                    <label for="progres" class="form-label">Progres</label>
-                                                    <input type="text" class="form-control" id="progres" name="progres" value="penelitian" readonly>
-                                                </div>
+                                                <input type="hidden" id="progres" name="progres" value="penelitian">
 
                                                 <div class="col-md-12">
                                                     <label for="lampiran" class="form-label">Lampiran</label>
+                                                    <?php if (!empty($data['lampiran'])): ?>
+                                                        <div class="mb-2">
+                                                            <a href="../uploads/<?php echo htmlspecialchars($data['lampiran']); ?>" target="_blank">Lihat Lampiran Saat Ini</a>
+                                                        </div>
+                                                    <?php endif; ?>
                                                     <input type="file" class="form-control" id="lampiran" name="lampiran" accept=".pdf,.jpg,.jpeg,.png">
+                                                    <small class="form-text text-muted">Kosongkan jika tidak ingin mengubah lampiran.</small>
                                                 </div>
 
                                                 <div class="col-12 mt-4">
-                                                    <button type="submit" class="btn btn-primary w-100">Ajukan STTP</button>
+                                                    <button type="submit" class="btn btn-primary w-100">Update STTP</button>
                                                 </div>
                                             </div>
                                         </form>
-
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- End::Formulir -->
             </div>
         </div>
+        <?php include 'foot.php'; ?>
+        <?php include 'script.php'; ?>
     </div>
-
-    <!-- Scroll To Top -->
-    <div class="scrollToTop">
-        <span class="arrow"><i class="fe fe-arrow-up"></i></span>
-    </div>
-    <div id="responsive-overlay"></div>
-    <!-- Scroll To Top -->
-
-    <!-- Footer Start -->
-    <footer class="footer mt-auto py-3 bg-white text-center">
-        <div class="container">
-            <?php include 'foot.php'; ?>
-        </div>
-    </footer>
-    <!-- Footer End -->
-
-    <?php include 'script.php'; ?>
-
 </body>
-
 </html>

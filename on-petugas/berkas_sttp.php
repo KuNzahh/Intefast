@@ -129,7 +129,7 @@ if (isset($_POST['id_sttp_upload'])) {
                                         include '../include/koneksi.php'; // koneksi ke database
 
                                         $query_sttp = "
-                                            SELECT sttp.*, users.username, sttp.tanggal_pengajuan, sttp.nama_paslon, sttp.nama_kampanye
+                                            SELECT sttp.*, users.username, sttp.tanggal_pengajuan, sttp.nama_paslon, sttp.kampanye_id, sttp.progres, sttp.berkasOnline
                                             FROM sttp
                                             LEFT JOIN users ON sttp.user_id = users.id_user
                                             ORDER BY sttp.tanggal_pengajuan DESC
@@ -143,7 +143,7 @@ if (isset($_POST['id_sttp_upload'])) {
                                                 <td class="text-center"><?php echo $no++; ?></td>
                                                 <td><?php echo htmlspecialchars($row_sttp['username']); ?></td>
                                                 <td><?php echo htmlspecialchars($row_sttp['nama_paslon']); ?></td>
-                                                <td class="text-center"><?php echo htmlspecialchars($row_sttp['nama_kampanye']); ?></td>
+                                                <td class="text-center"><?php echo htmlspecialchars($row_sttp['kampanye_id']); ?></td>
                                                 <td class="text-center">
                                                     <a href="detail_sttp.php?id=<?php echo $row_sttp['id_sttp']; ?>" class="btn btn-sm btn-primary">
                                                         <i>Cek detail</i>
@@ -167,6 +167,9 @@ if (isset($_POST['id_sttp_upload'])) {
                                                         echo '</button>';
                                                     }
                                                     ?>
+                                                    <a href="kirim_email_sttp.php?user_id=<?php echo $row_sttp['user_id']; ?>" class="btn btn-sm btn-info mt-1">
+                                                        <i class="fas fa-envelope"></i> Kirim Notifikasi Email
+                                                    </a>
                                                 </td>
                                             </tr>
                                         <?php

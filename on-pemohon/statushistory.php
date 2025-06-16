@@ -367,6 +367,9 @@ elseif (isset($_SESSION['error'])): ?>
                         $latest_sttp = mysqli_fetch_assoc($result_latest_sttp);
                         if ($latest_sttp && isset($latest_sttp['progres'])) {
                             displayTracking($latest_sttp['progres']);
+                            if ($latest_sttp['progres'] == 'ditolak') {
+                                echo '<div class="mt-3"><a href="edit_data_sttp.php?id_sttp=' . $latest_sttp['id_sttp'] . '" class="btn btn-warning">Edit Data</a></div>';
+                            }
                         } else {
                             echo '<p class="text-muted">Belum ada pengajuan STTP.</p>';
                         }
@@ -512,7 +515,18 @@ elseif (isset($_SESSION['error'])): ?>
                                                 <td><?php echo $no++; ?></td>
                                                 <td><?php echo date('d-m-Y', strtotime($sttp['tanggal_pengajuan'])); ?></td>
                                                 <td><?php echo htmlspecialchars($sttp['nama_paslon']); ?></td>
-                                                <td><?php echo htmlspecialchars($sttp['nama_kampanye']); ?></td>
+                                                <?php
+                                                // Ambil nama kampanye dari tabel kampanye berdasarkan kampanye_id
+                                                $nama_kampanye = '-';
+                                                if (!empty($sttp['kampanye_id'])) {
+                                                    $kampanye_id = $sttp['kampanye_id'];
+                                                    $query_kampanye = mysqli_query($conn, "SELECT nama_kampanye FROM kampanye WHERE id_kampanye = '$kampanye_id' LIMIT 1");
+                                                    if ($row_kampanye = mysqli_fetch_assoc($query_kampanye)) {
+                                                        $nama_kampanye = htmlspecialchars($row_kampanye['nama_kampanye']);
+                                                    }
+                                                }
+                                                ?>
+                                                <td><?php echo $nama_kampanye; ?></td>
                                                 <td>
                                                     <?php
                                                     $progres = $sttp['progres'];

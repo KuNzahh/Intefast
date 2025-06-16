@@ -15,11 +15,16 @@ $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $query_sttp_detail = "
     SELECT
         sttp.*,
-        users.username
+        users.username,
+        kam.nama_kampanye,
+        kec.nama_kecamatan
     FROM sttp
     LEFT JOIN users ON sttp.user_id = users.id_user
+    LEFT JOIN kampanye kam ON sttp.kampanye_id = kam.id_kampanye
+    LEFT JOIN kecamatan kec ON sttp.kecamatan_id = kec.id_kecamatan
     WHERE sttp.id_sttp = $id
 ";
+
 $result_sttp_detail = mysqli_query($conn, $query_sttp_detail);
 
 if (!$result_sttp_detail || mysqli_num_rows($result_sttp_detail) == 0) {
@@ -46,14 +51,8 @@ if (isset($_POST['kirim_pesan_tolak_sttp'])) {
     if (!empty($pesan_tolak_sttp)) {
         $update_progres_query_tolak = "UPDATE sttp SET progres = 'ditolak' WHERE id_sttp = $id";
         if (mysqli_query($conn, $update_progres_query_tolak)) {
-            // Jika ada fitur chat, sesuaikan ini
-            // $query_insert_chat_tolak = "INSERT INTO chat (id_pengirim, id_penerima, pesan, timestamp)
-            //                                              VALUES ($petugas_id, $user_id_pemohon, '$pesan_tolak_sttp', NOW())";
-            // if (mysqli_query($conn, $query_insert_chat_tolak)) {
                 echo "<script>alert('Pesan penolakan STTP telah dikirim kepada " . htmlspecialchars($data_sttp['nama_paslon']) . ". Status berkas STTP diubah menjadi ditolak.'); window.location.href='berkas_sttp.php';</script>";
-            // } else {
-            //     echo "<script>alert('Gagal mengirim pesan penolakan STTP.');</script>";
-            // }
+            
         } else {
             echo "<script>alert('Gagal memperbarui status berkas STTP menjadi ditolak.');</script>";
         }
@@ -117,6 +116,10 @@ if (isset($_POST['simpan_memperhatikan'])) {
                     <tr>
                         <th>Tempat</th>
                         <td><?php echo htmlspecialchars($data_sttp['tempat']); ?></td>
+                    </tr>
+                    <tr>
+                        <th>Kecamatan</th>
+                        <td><?php echo htmlspecialchars($data_sttp['nama_kecamatan']); ?></td>
                     </tr>
                     <tr>
                         <th>Jumlah Peserta</th>

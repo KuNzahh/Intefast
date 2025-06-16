@@ -155,7 +155,7 @@ class PDF extends FPDF
             "Untuk" => "Penyelenggaraan Kegiatan sebagai berikut :",
             "1. Bentuk/Macam" => $row['nama_keramaian'], // Jika ini berbeda, sesuaikan kolomnya
             "2. Waktu" => $row['tgl_kegiatan'],
-            "3. Tempat" => $row['tempat'] . ', ' . $row['nama_kecamatan'],
+            "3. Tempat" => $row['tempat'] . ', Kec.' . $row['nama_kecamatan'],
             "4. Dalam Rangka" => $row['rangka'],
             "5. Peserta" => $row['peserta']
         ];
