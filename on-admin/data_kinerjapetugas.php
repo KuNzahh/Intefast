@@ -152,14 +152,6 @@ if (isset($_GET['hapus'])) {
                                 <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Tambah/Edit Kinerja Petugas</h5>
                             </div>
                             <div class="card-body">
-                                <?php if (isset($_SESSION['success'])): ?>
-                                    <div class="alert alert-success"><?= $_SESSION['success']; ?></div>
-                                    <?php unset($_SESSION['success']); ?>
-                                <?php endif; ?>
-                                <?php if (isset($_SESSION['error'])): ?>
-                                    <div class="alert alert-danger"><?= $_SESSION['error']; ?></div>
-                                    <?php unset($_SESSION['error']); ?>
-                                <?php endif; ?>
                                 <form action="" method="POST">
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
@@ -257,33 +249,72 @@ if (isset($_GET['hapus'])) {
                             </div>
                             <div class="card-body table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabelKinerja">
-                                    <thead class="table-primary text-center">
+                                    <!-- Modal Notifikasi -->
+                                    <?php if (isset($_SESSION['error']) || isset($_SESSION['success'])): ?>
+                                        <div class="modal fade" id="notifModal" tabindex="-1" aria-labelledby="notifModalLabel" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header <?= isset($_SESSION['error']) ? 'bg-danger' : 'bg-success'; ?>">
+                                                        <h5 class="modal-title text-white" id="notifModalLabel">
+                                                            <?= isset($_SESSION['error']) ? 'Gagal!' : 'Berhasil!'; ?>
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <?= isset($_SESSION['error']) ? $_SESSION['error'] : $_SESSION['success']; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <script>
+                                            // Tampilkan modal setelah halaman dimuat
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                var notifModal = new bootstrap.Modal(document.getElementById('notifModal'));
+                                                notifModal.show();
+                                            });
+                                        </script>
+                                        <?php unset($_SESSION['error'], $_SESSION['success']); ?>
+                                    <?php endif; ?>
+                                    <thead class="table-primary text-center align-middle">
                                         <tr>
-                                            <th>No</th>
+                                            <th style="width: 50px;">No</th>
                                             <th>Nama Petugas</th>
-                                            <th>Tanggal Penilaian</th>
+                                            <th style="width: 140px;">Tanggal Penilaian</th>
                                             <th>Kedisiplinan</th>
                                             <th>Tanggung Jawab</th>
                                             <th>Kerjasama</th>
                                             <th>Inisiatif</th>
                                             <th>Kualitas Kerja</th>
                                             <th>Catatan</th>
-                                            <th>Aksi</th>
+                                            <th style="width: 120px;">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php
+                                        // Pagination setup
+                                        $perPage = 10;
+                                        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+                                        if ($page < 1) $page = 1;
+                                        $start = ($page - 1) * $perPage;
+
+                                        $totalQuery = mysqli_query($conn, "SELECT COUNT(*) as total FROM kinerja_petugas kp JOIN users u ON kp.id_user = u.id_user WHERE u.role = 'petugas'");
+                                        $totalData = mysqli_fetch_assoc($totalQuery);
+                                        $totalRows = $totalData['total'];
+                                        $totalPages = ceil($totalRows / $perPage);
+
                                         $query_kinerja = mysqli_query($conn, "SELECT kp.*, u.nama, u.id_user
-                                                                 FROM kinerja_petugas kp
-                                                                 JOIN users u ON kp.id_user = u.id_user
-                                                                 WHERE u.role = 'petugas'");
-                                        $no = 1;
+                                            FROM kinerja_petugas kp
+                                            JOIN users u ON kp.id_user = u.id_user
+                                            WHERE u.role = 'petugas'
+                                            ORDER BY kp.id_kinerja DESC
+                                            LIMIT $start, $perPage");
+                                        $no = $start + 1;
                                         while ($data_kinerja = mysqli_fetch_assoc($query_kinerja)) {
                                         ?>
                                             <tr id="row-<?= $data_kinerja['id_kinerja']; ?>">
                                                 <td class="text-center"><?= $no++; ?></td>
                                                 <td class="data-nama_petugas data-id_user" data-id="<?= $data_kinerja['id_user']; ?>"><?= htmlspecialchars($data_kinerja['nama']); ?></td>
-                                                <td class="data-tanggal_penilaian"><?= htmlspecialchars($data_kinerja['tanggal_penilaian']); ?></td>
+                                                <td class="data-tanggal_penilaian text-center"><?= htmlspecialchars($data_kinerja['tanggal_penilaian']); ?></td>
                                                 <td class="data-kedisiplinan"><?= htmlspecialchars($data_kinerja['kedisiplinan']); ?></td>
                                                 <td class="data-tanggung_jawab"><?= htmlspecialchars($data_kinerja['tanggung_jawab']); ?></td>
                                                 <td class="data-kerjasama"><?= htmlspecialchars($data_kinerja['kerjasama']); ?></td>
@@ -291,10 +322,10 @@ if (isset($_GET['hapus'])) {
                                                 <td class="data-kualitas_kerja"><?= htmlspecialchars($data_kinerja['kualitas_kerja']); ?></td>
                                                 <td class="data-catatan"><?= htmlspecialchars($data_kinerja['catatan']); ?></td>
                                                 <td class="text-center">
-                                                    <button class="btn btn-sm btn-warning" onclick="editKinerja(<?= $data_kinerja['id_kinerja']; ?>)">
+                                                    <button class="btn btn-sm btn-warning" onclick="editKinerja(<?= $data_kinerja['id_kinerja']; ?>)" title="Edit">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
-                                                    <button class="btn btn-sm btn-danger" onclick="hapusKinerja(<?= $data_kinerja['id_kinerja']; ?>)">
+                                                    <button class="btn btn-sm btn-danger" onclick="hapusKinerja(<?= $data_kinerja['id_kinerja']; ?>)" title="Hapus">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </td>
@@ -302,22 +333,85 @@ if (isset($_GET['hapus'])) {
                                         <?php } ?>
                                     </tbody>
                                 </table>
+                                <!-- Pagination Preview -->
+                                <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap">
+                                    <div>
+                                        <small>
+                                            Menampilkan
+                                            <b><?= min($start + 1, $totalRows); ?></b>
+                                            -
+                                            <b><?= min($start + $perPage, $totalRows); ?></b>
+                                            dari <b><?= $totalRows; ?></b> kinerja petugas
+                                        </small>
+                                    </div>
+                                    <nav>
+                                        <ul class="pagination pagination-sm mb-0">
+                                            <li class="page-item<?= ($page <= 1) ? ' disabled' : ''; ?>">
+                                                <a class="page-link" href="?page=<?= $page - 1; ?>" tabindex="-1">&laquo;</a>
+                                            </li>
+                                            <?php
+                                            for ($i = 1; $i <= $totalPages; $i++) {
+                                                if ($i == $page || ($i <= 2 || $i > $totalPages - 2 || abs($i - $page) <= 1)) {
+                                            ?>
+                                                    <li class="page-item<?= ($i == $page) ? ' active' : ''; ?>">
+                                                        <a class="page-link" href="?page=<?= $i; ?>"><?= $i; ?></a>
+                                                    </li>
+                                            <?php
+                                                } elseif ($i == 3 && $page > 4) {
+                                                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                                } elseif ($i == $totalPages - 2 && $page < $totalPages - 3) {
+                                                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                                }
+                                            }
+                                            ?>
+                                            <li class="page-item<?= ($page >= $totalPages) ? ' disabled' : ''; ?>">
+                                                <a class="page-link" href="?page=<?= $page + 1; ?>">&raquo;</a>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <script>
-                    function editKinerja(id) {
-                        // Implementasikan logika edit jika diperlukan
-                        console.log('Edit kinerja dengan ID:', id);
-                    }
+                    // Fungsi editKinerja sudah didefinisikan di atas, tidak perlu didefinisikan ulang di sini
 
                     function hapusKinerja(id) {
-                        if (confirm('Yakin ingin menghapus data kinerja ini?')) {
-                            // Implementasikan logika hapus jika diperlukan
-                            console.log('Hapus kinerja dengan ID:', id);
-                            // window.location = `?hapus=${id}`; // Contoh jika ada parameter hapus
+                        // Buat modal konfirmasi jika belum ada
+                        let modal = document.getElementById('modalHapusKinerja');
+                        if (!modal) {
+                            modal = document.createElement('div');
+                            modal.innerHTML = `
+                                <div class="modal fade" id="modalHapusKinerja" tabindex="-1" aria-labelledby="modalHapusKinerjaLabel" aria-hidden="true">
+                                  <div class="modal-dialog">
+                                    <div class="modal-content">
+                                      <div class="modal-header bg-danger">
+                                        <h5 class="modal-title text-white" id="modalHapusKinerjaLabel">Konfirmasi Hapus</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                      </div>
+                                      <div class="modal-body">
+                                        Apakah Anda yakin ingin menghapus data kinerja petugas ini?
+                                      </div>
+                                      <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                        <button type="button" class="btn btn-danger" id="btnKonfirmasiHapusKinerja">Hapus</button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                            `;
+                            document.body.appendChild(modal);
                         }
+
+                        // Tampilkan modal
+                        var bsModal = new bootstrap.Modal(document.getElementById('modalHapusKinerja'));
+                        bsModal.show();
+
+                        // Set event tombol hapus
+                        document.getElementById('btnKonfirmasiHapusKinerja').onclick = function() {
+                            window.location = `?hapus=${id}`;
+                        };
                     }
 
                     function cariDataKinerja() {

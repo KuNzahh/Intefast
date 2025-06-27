@@ -71,6 +71,12 @@ class PDF extends FPDF
         $this->SetFont('Arial','B',12);
         $judul = 'Laporan Data Kegiatan Masyarakat';
         $this->Cell(0,10,$judul,0,1,'C');
+
+        $this->SetFont('Arial', '', 11);
+        $this->Ln(3);
+        $paragraf = "Laporan ini memuat data kegiatan masyarakat yang telah terdaftar dan tercatat pada Satuan Intelkam Polres Barito Kuala. Setiap kegiatan yang tercantum telah melalui proses verifikasi sesuai prosedur yang berlaku, guna memastikan ketertiban, keamanan, dan kelancaran pelaksanaan kegiatan masyarakat di wilayah hukum Polres Barito Kuala. Data pada laporan ini diharapkan dapat menjadi acuan dalam pengambilan keputusan serta evaluasi pelaksanaan tugas kepolisian terkait pengawasan kegiatan masyarakat.";
+        $this->MultiCell(0, 7, $paragraf, 0, 'J');
+        $this->Ln(5);
     }
 
     function Footer()
@@ -158,6 +164,7 @@ class PDF extends FPDF
         }
     }
 
+    // Hitung jumlah baris yang dibutuhkan untuk setiap kolom pada satu data
     function NbLines($w, $txt) {
         $cw = &$this->CurrentFont['cw'];
         if ($w == 0)
@@ -201,51 +208,84 @@ class PDF extends FPDF
         return $nl;
     }
 
+    // Tabel fleksibel, tinggi baris menyesuaikan isi terpanjang
     function TabelKegiatan($header, $data)
-{
-    $w = array(10, 35, 25, 20, 40, 60);
-    $align = array('C', 'L', 'C', 'C', 'L', 'L');
+    {
+        // Definisi kolom: label, width, align
+        $columns = [
+            ['label' => 'No', 'width' => 10, 'align' => 'C'],
+            ['label' => 'Nama', 'width' => 35, 'align' => 'L'],
+            ['label' => 'Tanggal', 'width' => 25, 'align' => 'C'],
+            ['label' => 'Jenis', 'width' => 20, 'align' => 'C'],
+            ['label' => 'Tempat', 'width' => 40, 'align' => 'L'],
+            ['label' => 'Keterangan', 'width' => 0, 'align' => 'L'], // 0 = otomatis sisa lebar
+        ];
 
-    // Background putih
-    $this->SetFillColor(255, 255, 255);
-    $this->SetTextColor(0);
-    $this->SetDrawColor(0, 0, 0);
-    $this->SetLineWidth(.3);
+        // Hitung sisa lebar halaman untuk kolom terakhir
+        $totalWidth = $this->GetPageWidth() - $this->lMargin - $this->rMargin;
+        $fixedWidth = 0;
+        foreach ($columns as $col) {
+            if ($col['width'] > 0) $fixedWidth += $col['width'];
+        }
+        foreach ($columns as &$col) {
+            if ($col['width'] == 0) $col['width'] = $totalWidth - $fixedWidth;
+        }
+        unset($col);
 
-    // Header
-    $this->SetFont('Arial', 'B', 10);
-    foreach ($header as $i => $col) {
-        $this->Cell($w[$i], 7, $col, 1, 0, $align[$i], false);
+        // Header
+        $this->SetFillColor(230, 230, 230);
+        $this->SetTextColor(0);
+        $this->SetDrawColor(0, 0, 0);
+        $this->SetLineWidth(.3);
+        $this->SetFont('Arial', 'B', 10);
+        foreach ($columns as $col) {
+            $this->Cell($col['width'], 8, $col['label'], 1, 0, $col['align'], true);
+        }
+        $this->Ln();
+
+        $this->SetFont('Arial', '', 10);
+        $no = 1;
+        foreach ($data as $row) {
+            $cellData = [
+                $no,
+                $row['nama_pemohon'],
+                date('d-m-Y', strtotime($row['tanggal_kegiatan'])),
+                $row['jenis'],
+                $row['tempat'],
+                strip_tags($row['dasar'])
+            ];
+
+            // Hitung tinggi baris berdasarkan multicell terpanjang
+            $cellHeights = [];
+            foreach ($columns as $i => $col) {
+                $cellHeights[] = $this->NbLines($col['width'], $cellData[$i]) * 6;
+            }
+            $rowHeight = max($cellHeights);
+
+            // Cek page break
+            $this->CheckPageBreak($rowHeight);
+
+            $x = $this->GetX();
+            $y = $this->GetY();
+
+            // Cetak cell satu per satu, MultiCell untuk semua kolom agar wrap otomatis
+            for ($i = 0; $i < count($columns); $i++) {
+                $col = $columns[$i];
+                $w = $col['width'];
+                $align = $col['align'];
+                $txt = $cellData[$i];
+
+                $this->SetXY($x, $y);
+                $this->MultiCell($w, $rowHeight / $this->NbLines($w, $txt), $txt, 1, $align, false);
+                $x += $w;
+            }
+            $this->SetY($y + $rowHeight);
+            $no++;
+        }
+
+        // Garis bawah tabel
+        $this->Cell($totalWidth, 0, '', 'T');
     }
-    $this->Ln();
-
-    $this->SetFont('Arial', '', 10);
-    $no = 1;
-
-    foreach ($data as $row) {
-        $keterangan = strip_tags($row['dasar']);
-        $nb = $this->NbLines($w[5], $keterangan);
-        $h = 6 * $nb;
-
-        $this->CheckPageBreak($h);
-
-        $x = $this->GetX();
-        $y = $this->GetY();
-
-        $this->Cell($w[0], $h, $no++, 1, 0, $align[0], false);
-        $this->Cell($w[1], $h, $row['nama_pemohon'], 1, 0, $align[1], false);
-        $this->Cell($w[2], $h, date('d-m-Y', strtotime($row['tanggal_kegiatan'])), 1, 0, $align[2], false);
-        $this->Cell($w[3], $h, $row['jenis'], 1, 0, $align[3], false);
-        $this->Cell($w[4], $h, $row['tempat'], 1, 0, $align[4], false);
-
-        $this->SetXY($this->GetX(), $y); // Tetap di baris yang sama
-        $this->MultiCell($w[5], 6, $keterangan, 1, $align[5], false);
-
-        $this->SetY($y + $h); // Naik ke baris baru
-    }
-
-    $this->Cell(array_sum($w), 0, '', 'T');
-}
 
 }
 

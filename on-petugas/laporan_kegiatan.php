@@ -50,7 +50,7 @@ $sql_kegiatan = "
     UNION ALL
     SELECT
         'STTP' AS jenis_kegiatan_source,
-        st.nama_kampanye AS nama_kegiatan,
+        (SELECT k.nama_kampanye FROM kampanye k WHERE k.id_kampanye = st.kampanye_id) AS nama_kegiatan,
         st.nama_paslon AS deskripsi_kegiatan,
         st.tgl_kampanye AS tanggal_kegiatan_utama -- Using tgl_kampanye from STTP
     FROM sttp st

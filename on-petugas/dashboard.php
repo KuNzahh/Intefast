@@ -143,7 +143,7 @@ sort($all_months);
                                 <i class="fas fa-file-alt fa-2x mb-2"></i>
                                 <h6 class="fw-bold">Jumlah SKCK</h6>
                                 <h3><?php echo $jumlah_skck; ?></h3>
-                                <a href="laporan_skck.php" class="btn btn-light btn-sm mt-2">Detail</a>
+                                <a href="laporan_permohonan.php" class="btn btn-light btn-sm mt-2">Detail</a>
                             </div>
                         </div>
                     </div>
@@ -153,7 +153,7 @@ sort($all_months);
                                 <i class="fas fa-id-card fa-2x mb-2"></i>
                                 <h6 class="fw-bold">Jumlah SIK</h6>
                                 <h3><?php echo $jumlah_sik; ?></h3>
-                                <a href="laporan_sik.php" class="btn btn-light btn-sm mt-2">Detail</a>
+                                <a href="laporan_permohonan.php" class="btn btn-light btn-sm mt-2">Detail</a>
                             </div>
                         </div>
                     </div>
@@ -163,7 +163,7 @@ sort($all_months);
                                 <i class="fas fa-bullhorn fa-2x mb-2"></i>
                                 <h6 class="fw-bold">Jumlah STTP</h6>
                                 <h3><?php echo $jumlah_sttp; ?></h3>
-                                <a href="laporan_sttp.php" class="btn btn-light btn-sm mt-2">Detail</a>
+                                <a href="laporan_permohonan.php" class="btn btn-light btn-sm mt-2">Detail</a>
                             </div>
                         </div>
                     </div>

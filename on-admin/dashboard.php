@@ -124,7 +124,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['simpan_berita'])) {
             if (count($_SESSION['notifikasi_admin']) > 10) {
                 array_pop($_SESSION['notifikasi_admin']);
             }
-
         } else {
             $gagal_simpan = "Gagal menyimpan berita: " . mysqli_error($conn);
         }
@@ -303,8 +302,8 @@ sort($all_months);
 
                 <div class="col-md-12 mb-4">
                     <div class="card shadow">
-                        <div class="card-header bg-info text-white fw-bold">
-                            <i class="fas fa-newspaper me-2"></i> Tambah Berita Baru
+                        <div class="card-header bg-info text-primary fw-bold">
+                            <h4 class="fas fa-newspaper me-2"></h4> Tambah Berita Baru
                         </div>
                         <div class="card-body">
                             <?php if ($berhasil_simpan): ?>
@@ -334,6 +333,7 @@ sort($all_months);
                                     <small class="text-muted">Pilih gambar untuk berita (opsional).</small>
                                 </div>
                                 <button type="submit" class="btn btn-primary" name="simpan_berita">Simpan Berita</button>
+                                <a href="data_berita.php" class="btn btn-secondary">Data Berita</a>
                             </form>
                         </div>
                     </div>
@@ -350,12 +350,8 @@ sort($all_months);
                                 <div class="mt-3 text-end">
                                     <a href="cetak_laporan_statistik.php" class="btn btn-success me-2" target="_blank">
                                         <i class="fas fa-print me-2"></i>
-                                        Unduh PDF 
+                                        Unduh PDF
                                     </a>
-                                    <button class="btn btn-primary btn-sm" onclick="downloadStatistik()">
-                                        <i class="fas fa-download me-2"></i>
-                                        Unduh CSV
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -367,8 +363,17 @@ sort($all_months);
                                 <span class="d-block fs-12 mb-0 text-muted">Data rata-rata hasil survei kepuasan masyarakat.</span>
                             </div>
                             <div class="card-body">
-                                <canvas id="surveyChart" style="height: 300px;"></canvas>
+                                <div>
+                                    <canvas id="surveyChart" class="chartjs-chart" style="height: 300px;"></canvas>
+                                </div>
+                                <div class="mt-3 text-end">
+                                <a href="cetak_laporan_HasilSurveyLayanan.php" class="btn btn-success me-2" target="_blank">
+                                    <i class="fas fa-print me-2"></i>
+                                    Unduh PDF
+                                </a>
                             </div>
+                            </div>
+                            
                         </div>
                     </div>
                 </div>
@@ -478,7 +483,7 @@ sort($all_months);
                     }
                 </script>
 
-                
+
 
 
 

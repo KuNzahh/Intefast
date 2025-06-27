@@ -170,6 +170,7 @@ if (isset($_GET['hapus'])) {
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-light d-flex flex-wrap justify-content-between align-items-center">
                                 <h5 class="mb-0"><i class="fas fa-edit me-2"></i>Tambah Data Kriminal masyarakat</h5>
+                               
                             </div>
                             <div class="card-body">
                                 <form action="" method="POST">
@@ -223,6 +224,21 @@ if (isset($_GET['hapus'])) {
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-light d-flex flex-wrap justify-content-between align-items-center">
                                 <h5 class="mb-0"><i class="fas fa-edit me-2"></i>Daftar Data Kriminal Masyarakat</h5>
+                                 <div class="mt-2 mt-md-0" style="min-width: 250px;">
+                                    <input type="text" class="form-control" id="searchInput" placeholder="Cari NIK, Nama, Alamat..." onkeyup="searchTable()">
+                                </div>
+                                <script>
+                                function searchTable() {
+                                    const input = document.getElementById("searchInput").value.toLowerCase();
+                                    const rows = document.querySelectorAll("#tabelPengguna tbody tr");
+                                    rows.forEach(row => {
+                                        const nik = row.querySelector('.data-NIK').textContent.toLowerCase();
+                                        const nama = row.querySelector('.data-nama').textContent.toLowerCase();
+                                        const alamat = row.querySelector('.data-alamat').textContent.toLowerCase();
+                                        row.style.display = (nik.includes(input) || nama.includes(input) || alamat.includes(input)) ? "" : "none";
+                                    });
+                                }
+                                </script>
                                 <div class="mt-2 mt-md-0" style="min-width: 180px;">
                                     <select class="form-select" id="filterBulan" onchange="filterTable()">
                                         <option value="">Semua Kecamatan</option>

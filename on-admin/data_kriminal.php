@@ -65,23 +65,22 @@ if (isset($_GET['hapus'])) {
 ?>
 
 
-
 <script>
     function editKriminal(id) {
         const row = document.querySelector(`#row-${id}`);
         const NIK = row.querySelector('.data-NIK').textContent;
         const nama = row.querySelector('.data-nama').textContent;
         const alamat = row.querySelector('.data-alamat').textContent;
-        const kecamatan_id_data = row.querySelector('.data-kecamatan_id').textContent; // Ambil ID kecamatan dari data
+        const kecamatan_id_data = row.querySelector('.data-kecamatan').getAttribute('data-kecamatan-id'); // Ambil ID kecamatan dari atribut data
         const jenis_kelamin_data = row.querySelector('.data-jenis_kelamin').textContent;
         const cttkriminal = row.querySelector('.data-cttkriminal').textContent;
-
+    
         document.getElementById('id_kriminal').value = id;
         document.getElementById('NIK').value = NIK;
         document.getElementById('nama').value = nama;
         document.getElementById('alamat').value = alamat;
         document.getElementById('kecamatan_id').value = kecamatan_id_data; // Set nilai ID kecamatan
-
+    
         // Set nilai dropdown jenis kelamin
         const selectJenisKelamin = document.getElementById('jenis_kelamin');
         for (let i = 0; i < selectJenisKelamin.options.length; i++) {
@@ -90,7 +89,7 @@ if (isset($_GET['hapus'])) {
                 break;
             }
         }
-
+    
         document.getElementById('cttkriminal').value = cttkriminal;
     }
 
@@ -241,24 +240,63 @@ if (isset($_GET['hapus'])) {
                             </div>
                             <div class="card-body table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabelKriminalMasyarakat">
-                                    <thead class="table-primary text-center">
+                                    <!-- Modal Notifikasi -->
+                                    <?php if (isset($_SESSION['error']) || isset($_SESSION['success'])): ?>
+                                        <div class="modal fade" id="notifModal" tabindex="-1" aria-labelledby="notifModalLabel" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header <?= isset($_SESSION['error']) ? 'bg-danger' : 'bg-success'; ?>">
+                                                        <h5 class="modal-title text-white" id="notifModalLabel">
+                                                            <?= isset($_SESSION['error']) ? 'Gagal!' : 'Berhasil!'; ?>
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <?= isset($_SESSION['error']) ? $_SESSION['error'] : $_SESSION['success']; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <script>
+                                            // Tampilkan modal setelah halaman dimuat
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                var notifModal = new bootstrap.Modal(document.getElementById('notifModal'));
+                                                notifModal.show();
+                                            });
+                                        </script>
+                                        <?php unset($_SESSION['error'], $_SESSION['success']); ?>
+                                    <?php endif; ?>
+                                    <thead class="table-primary text-center align-middle">
                                         <tr>
-                                            <th>No</th>
+                                            <th style="width: 50px;">No</th>
                                             <th>NIK</th>
                                             <th>Nama</th>
                                             <th>Alamat</th>
                                             <th>Kecamatan</th>
                                             <th>Jenis Kelamin</th>
                                             <th>Catatan Kriminal</th>
-                                            <th>Aksi</th>
+                                            <th style="width: 120px;">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php
+                                        // Pagination setup
+                                        $perPage = 10;
+                                        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+                                        if ($page < 1) $page = 1;
+                                        $start = ($page - 1) * $perPage;
+
+                                        $totalQuery = mysqli_query($conn, "SELECT COUNT(*) as total FROM kriminal");
+                                        $totalData = mysqli_fetch_assoc($totalQuery);
+                                        $totalRows = $totalData['total'];
+                                        $totalPages = ceil($totalRows / $perPage);
+
                                         $query_kriminal = mysqli_query($conn, "SELECT k.*, kec.nama_kecamatan
-                                                                     FROM kriminal k
-                                                                     INNER JOIN kecamatan kec ON k.kecamatan_id = kec.id_kecamatan");
-                                        $no = 1;
+                                            FROM kriminal k
+                                            INNER JOIN kecamatan kec ON k.kecamatan_id = kec.id_kecamatan
+                                            ORDER BY k.id_kriminal DESC
+                                            LIMIT $start, $perPage");
+                                        $no = $start + 1;
                                         while ($data_kriminal = mysqli_fetch_assoc($query_kriminal)) {
                                         ?>
                                             <tr id="row-<?= $data_kriminal['id_kriminal']; ?>">
@@ -266,14 +304,14 @@ if (isset($_GET['hapus'])) {
                                                 <td class="data-NIK"><?= htmlspecialchars($data_kriminal['NIK']); ?></td>
                                                 <td class="data-nama"><?= htmlspecialchars($data_kriminal['nama']); ?></td>
                                                 <td class="data-alamat"><?= htmlspecialchars($data_kriminal['alamat']); ?></td>
-                                                <td class="data-kecamatan"><?= htmlspecialchars($data_kriminal['nama_kecamatan']); ?></td>
+                                                <td class="data-kecamatan" data-kecamatan-id="<?= htmlspecialchars($data_kriminal['kecamatan_id']); ?>"><?= htmlspecialchars($data_kriminal['nama_kecamatan']); ?></td>
                                                 <td class="data-jenis_kelamin"><?= htmlspecialchars($data_kriminal['jenis_kelamin']); ?></td>
                                                 <td class="data-cttkriminal"><?= htmlspecialchars($data_kriminal['cttkriminal']); ?></td>
                                                 <td class="text-center">
-                                                    <button class="btn btn-sm btn-warning" onclick="editKriminal(<?= $data_kriminal['id_kriminal']; ?>)">
+                                                    <button class="btn btn-sm btn-warning" onclick="editKriminal(<?= $data_kriminal['id_kriminal']; ?>)" title="Edit">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
-                                                    <button class="btn btn-sm btn-danger" onclick="hapusKriminal(<?= $data_kriminal['id_kriminal']; ?>)">
+                                                    <button class="btn btn-sm btn-danger" onclick="hapusKriminal(<?= $data_kriminal['id_kriminal']; ?>)" title="Hapus">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </td>
@@ -281,22 +319,125 @@ if (isset($_GET['hapus'])) {
                                         <?php } ?>
                                     </tbody>
                                 </table>
+                                <!-- Pagination Preview -->
+                                <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap">
+                                    <div>
+                                        <small>
+                                            Menampilkan
+                                            <b><?= min($start + 1, $totalRows); ?></b>
+                                            -
+                                            <b><?= min($start + $perPage, $totalRows); ?></b>
+                                            dari <b><?= $totalRows; ?></b> data kriminal
+                                        </small>
+                                    </div>
+                                    <nav>
+                                        <ul class="pagination pagination-sm mb-0">
+                                            <li class="page-item<?= ($page <= 1) ? ' disabled' : ''; ?>">
+                                                <a class="page-link" href="?page=<?= $page - 1; ?>" tabindex="-1">&laquo;</a>
+                                            </li>
+                                            <?php
+                                            for ($i = 1; $i <= $totalPages; $i++) {
+                                                if ($i == $page || ($i <= 2 || $i > $totalPages - 2 || abs($i - $page) <= 1)) {
+                                                    // Show first 2, last 2, and 1 around current
+                                            ?>
+                                                    <li class="page-item<?= ($i == $page) ? ' active' : ''; ?>">
+                                                        <a class="page-link" href="?page=<?= $i; ?>"><?= $i; ?></a>
+                                                    </li>
+                                            <?php
+                                                } elseif ($i == 3 && $page > 4) {
+                                                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                                } elseif ($i == $totalPages - 2 && $page < $totalPages - 3) {
+                                                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                                }
+                                            }
+                                            ?>
+                                            <li class="page-item<?= ($page >= $totalPages) ? ' disabled' : ''; ?>">
+                                                <a class="page-link" href="?page=<?= $page + 1; ?>">&raquo;</a>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
                 <script>
                     function editKriminal(id) {
-                        // Implementasikan logika edit jika diperlukan
-                        console.log('Edit data kriminal dengan ID:', id);
+                        const row = document.querySelector(`#row-${id}`);
+                        const NIK = row.querySelector('.data-NIK').textContent;
+                        const nama = row.querySelector('.data-nama').textContent;
+                        const alamat = row.querySelector('.data-alamat').textContent;
+                        const kecamatan_id_data = row.querySelector('.data-kecamatan').getAttribute('data-kecamatan-id'); // Ambil ID kecamatan dari atribut data
+                        const jenis_kelamin_data = row.querySelector('.data-jenis_kelamin').textContent;
+                        const cttkriminal = row.querySelector('.data-cttkriminal').textContent;
+                    
+                        document.getElementById('id_kriminal').value = id;
+                        document.getElementById('NIK').value = NIK;
+                        document.getElementById('nama').value = nama;
+                        document.getElementById('alamat').value = alamat;
+                        document.getElementById('kecamatan_id').value = kecamatan_id_data; // Set nilai ID kecamatan
+                    
+                        // Set nilai dropdown jenis kelamin
+                        const selectJenisKelamin = document.getElementById('jenis_kelamin');
+                        for (let i = 0; i < selectJenisKelamin.options.length; i++) {
+                            if (selectJenisKelamin.options[i].value === jenis_kelamin_data) {
+                                selectJenisKelamin.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    
+                        document.getElementById('cttkriminal').value = cttkriminal;
                     }
 
+
+                    function filterTable() {
+                        const filter = document.getElementById("filterBulan").value.toLowerCase();
+                        const rows = document.querySelectorAll("#tabelPengguna tbody tr");
+
+                        rows.forEach(row => {
+                            const kecamatan = row.cells[4].textContent.toLowerCase(); // Sekarang kolom ke-5 (index 4) adalah Nama Kecamatan
+                            row.style.display = (filter === "" || kecamatan.includes(filter)) ? "" : "none";
+                        });
+                    }
+                </script>
+                <script>
+                    // HapusKriminal tetap bisa digunakan jika ingin menambah logika lain
                     function hapusKriminal(id) {
-                        if (confirm('Yakin ingin menghapus data kriminal ini?')) {
-                            // Implementasikan logika hapus jika diperlukan
-                            console.log('Hapus data kriminal dengan ID:', id);
-                            // window.location = `?hapus=${id}`; // Contoh jika ada parameter hapus
+                        // Buat modal konfirmasi jika belum ada
+                        let modal = document.getElementById('modalHapusKriminal');
+                        if (!modal) {
+                            modal = document.createElement('div');
+                            modal.innerHTML = `
+                                <div class="modal fade" id="modalHapusKriminal" tabindex="-1" aria-labelledby="modalHapusKriminalLabel" aria-hidden="true">
+                                  <div class="modal-dialog">
+                                    <div class="modal-content">
+                                      <div class="modal-header bg-danger">
+                                        <h5 class="modal-title text-white" id="modalHapusKriminalLabel">Konfirmasi Hapus</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                      </div>
+                                      <div class="modal-body">
+                                        Apakah Anda yakin ingin menghapus data kriminal ini?
+                                      </div>
+                                      <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                        <button type="button" class="btn btn-danger" id="btnKonfirmasiHapusKriminal">Hapus</button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                            `;
+                            document.body.appendChild(modal);
                         }
+
+                        // Tampilkan modal
+                        var bsModal = new bootstrap.Modal(document.getElementById('modalHapusKriminal'));
+                        bsModal.show();
+
+                        // Set event tombol hapus
+                        document.getElementById('btnKonfirmasiHapusKriminal').onclick = function() {
+                            window.location = `?hapus=${id}`;
+                        };
                     }
 
                     function cariDataKriminal() {

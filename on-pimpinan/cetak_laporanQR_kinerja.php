@@ -48,21 +48,29 @@ class PDF_Kinerja extends FPDF
     {
         if ($this->PageNo() == 1) {
             $this->SetFont('Arial', '', 11);
-            $this->Cell(0, 5, 'KEPOLISIAN NEGARA REPUBLIK INDONESIA', 0, 1, 'C');
-            $this->Cell(0, 5, 'DAERAH KALIMANTAN SELATAN', 0, 1, 'C');
-            $this->Cell(0, 5, 'RESOR BARITO KUALA', 0, 1, 'C');
+            $this->Cell(85, 5, 'KEPOLISIAN NEGARA REPUBLIK INDONESIA', 0, 1, 'C');
+            $this->Cell(85, 5, 'DAERAH KALIMANTAN SELATAN', 0, 1, 'C');
+            $this->Cell(85, 5, 'RESOR BARITO KUALA', 0, 1, 'C');
             $this->SetFont('Arial', '', 10);
-            $this->Cell(0, 5, 'Jl. Gusti M. Seman No. 1 Marabahan 70511', 'B', 1, 'C');
+            $this->Cell(85, 5, 'Jl. Gusti M. Seman No. 1 Marabahan 70511', 'B', 1, 'C');
             $this->Ln(3);
+
             $margin = 21;
             $logoWidth = 23;
-            $xPosition = $margin + ((($this->GetPageWidth() - 2 * $margin) - $logoWidth) / 2);
+            $pageWidth = $this->GetPageWidth();
+            $usableWidth = $pageWidth - (2 * $margin);
+            $xPosition = $margin + (($usableWidth - $logoWidth) / 2);
+
             $this->Image('../dist/img/logo.jpeg', $xPosition, $this->GetY(), $logoWidth);
             $this->Ln(23);
         }
 
         $this->SetFont('Arial', 'B', 12);
         $this->Cell(0, 10, 'Laporan Kinerja Petugas', 0, 1, 'C');
+
+        $this->SetFont('Arial', '', 10);
+        $this->MultiCell(0, 7, "Laporan ini dibuat untuk mengevaluasi kinerja petugas dan mendorong perbaikan berkelanjutan. Petugas yang menunjukkan kinerja baik akan mendapatkan penghargaan sebagai bentuk apresiasi.", 0, 'J');
+        $this->Ln(5);
     }
 
     function Footer()
@@ -131,6 +139,11 @@ class PDF_Kinerja extends FPDF
     {
         $w = array(10, 35, 30, 20, 25, 20, 20, 25, 55);
         $align = array('C', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'L');
+        $tableWidth = array_sum($w);
+        $pageWidth = $this->GetPageWidth() - $this->lMargin - $this->rMargin;
+        $x = $this->lMargin + (($pageWidth - $tableWidth) / 2);
+        $this->SetX($x);
+
         $this->SetFillColor(255,255,255);
         $this->SetTextColor(0);
         $this->SetDrawColor(0,0,0);
@@ -140,10 +153,12 @@ class PDF_Kinerja extends FPDF
             $this->Cell($w[$i], 7, $col, 1, 0, $align[$i]);
         }
         $this->Ln();
+
         $this->SetFont('Arial', '', 9);
         $fill = false;
         $no = 1;
         foreach ($data as $row) {
+            $this->SetX($x);
             $this->Cell($w[0], 6, $no++, 1, 0, $align[0], $fill);
             $this->Cell($w[1], 6, $row['nama_petugas'], 1, 0, $align[1], $fill);
             $this->Cell($w[2], 6, $row['tanggal_penilaian'], 1, 0, $align[2], $fill);
@@ -156,7 +171,8 @@ class PDF_Kinerja extends FPDF
             $this->Ln();
             $fill = !$fill;
         }
-        $this->Cell(array_sum($w), 0, '', 'T');
+        $this->SetX($x);
+        $this->Cell($tableWidth, 0, '', 'T');
     }
 }
 

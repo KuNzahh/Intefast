@@ -27,9 +27,10 @@ $result_sik = mysqli_query($conn, $sql_sik);
 $data_sik = mysqli_fetch_all($result_sik, MYSQLI_ASSOC);
 
 // Ambil data pengajuan STTP
-$sql_sttp = "SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, s.nama_paslon, s.nama_kampanye, s.progres, s.id_sttp
+$sql_sttp = "SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, s.nama_paslon, k.nama_kampanye, s.progres, s.id_sttp
              FROM sttp s
              JOIN users u ON s.user_id = u.id_user
+             JOIN kampanye k ON s.kampanye_id = k.id_kampanye
              ORDER BY s.tanggal_pengajuan DESC";
 $result_sttp = mysqli_query($conn, $sql_sttp);
 $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
@@ -72,7 +73,7 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
             <div class="container-fluid">
                 <div class="d-md-flex d-block align-items-center justify-content-between page-header-breadcrumb mb-4">
                     <div>
-                        <h2 class="main-content-title fs-24 mb-1">Data Permohonan</h2>
+                        <h2 class="main-content-title fs-24 mb-1">Data Sistem</h2>
                         <ol class="breadcrumb mb-0">
                             <li class="breadcrumb-item"><a href="dashboard.php">Home</a></li>
                             <li class="breadcrumb-item active" aria-current="page">Data Permohonan</li>
@@ -116,12 +117,6 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
                                 <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Data Permohonan</h5>
                             </div>
                             <div class="card-body table-responsive">
-                                <?php if (isset($_GET['hapus']) && $_GET['hapus'] == 'berhasil'): ?>
-                                    <div class="alert alert-success alert-dismissible fade show" role="alert" id="alertHapus">
-                                        <strong>Berhasil!</strong> Data permohonan telah dihapus.
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                    </div>
-                                <?php endif; ?>
                                 <table class="table table-bordered table-striped align-middle" id="tabelPermohonan">
                                     <thead class="table-primary text-center">
                                         <tr>
@@ -185,7 +180,7 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
                                                         <td class="text-center">SIK</td>
                                                         <td><?php echo htmlspecialchars($sik['nama_pemohon']); ?></td>
                                                         <td class="text-center"><?php echo date('d-m-Y', strtotime($sik['tanggal_pengajuan'])); ?></td>
-                                                        <td>Paslon: <?php echo htmlspecialchars($sik['nama_instansi']); ?><br>Kampanye: <?php echo htmlspecialchars($sik['penanggung_jawab']); ?></td>
+                                                        <td>Paslon: <?php echo htmlspecialchars($sik['nama_instansi']); ?><br>Penanggung Jawab: <?php echo htmlspecialchars($sik['penanggung_jawab']); ?></td>
                                                         <td class="text-center">
                                                             <?php
                                                             $progres = $sik['progres'];
@@ -268,17 +263,6 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
                 </div>
             </div>
         </div>
-        <script>
-            // Fade-out alert setelah 3 detik
-            setTimeout(function() {
-                var alert = document.getElementById("alertHapus");
-                if (alert) {
-                    var fade = new bootstrap.Alert(alert);
-                    fade.close();
-                }
-            }, 3000); // 3000ms = 3 detik
-        </script>
-
         <div class="scrollToTop">
             <span class="arrow"><i class="fe fe-arrow-up"></i></span>
         </div>
@@ -288,7 +272,6 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
                 <?php include 'foot.php'; ?>
             </div>
         </footer>
-
         <?php include 'script.php'; ?>
 
         <script>

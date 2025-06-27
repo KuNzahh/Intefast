@@ -33,7 +33,7 @@ $sql_all = "SELECT nama_pemohon, tanggal_pengajuan, jenis, detail, progres FROM 
     SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, 'SIK' AS jenis, CONCAT('Instansi: ', s.nama_instansi, '<br>Penanggung Jawab: ', s.penanggung_jawab) AS detail, s.progres
     FROM sik s JOIN users u ON s.user_id = u.id_user
     UNION ALL
-    SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, 'STTP' AS jenis, CONCAT('Paslon: ', s.nama_paslon, '<br>Kampanye: ', s.nama_kampanye) AS detail, s.progres
+    SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, 'STTP' AS jenis, CONCAT('Paslon: ', s.nama_paslon, '<br>Kampanye: ', s.kampanye_id) AS detail, s.progres
     FROM sttp s JOIN users u ON s.user_id = u.id_user
 ) AS semua $where ORDER BY tanggal_pengajuan DESC";
 

@@ -189,12 +189,35 @@ class PDF extends FPDF
 
             $this->SetFont('Arial', 'B', 11);
             $this->SetX($marginLeft);
-            $this->SetFont('Arial', 'BU', 11);
-            $this->Cell(0, 5, 'Bahwa nama tersebut tidak memiliki catatan atau keterlibatan dalam kegiatan kriminal apapun', 0, 1, 'L'); // Teks Indonesia
+            // Cek apakah NIK ada di tabel kriminal
+            $nik = $data['nik'];
+            $queryKriminal = "SELECT cttkriminal FROM kriminal WHERE nik = ?";
+            $stmtKriminal = $conn->prepare($queryKriminal);
+            $stmtKriminal->bind_param("s", $nik);
+            $stmtKriminal->execute();
+            $stmtKriminal->store_result();
 
-            $this->SetFont('Arial', 'I', 11); // Italic untuk Inggris
-            $this->SetX($marginLeft); // indentasi ke kanan
-            $this->Cell(0, 3, 'the bearer hereof proves not to be involved in any criminal cases', 0, 1, 'L'); // Teks Inggris
+            if ($stmtKriminal->num_rows > 0) {
+                $stmtKriminal->bind_result($cttkriminal);
+                $stmtKriminal->fetch();
+
+                // Jika ada catatan kriminal
+                $this->SetFont('Arial', 'BU', 11);
+                $this->Cell(0, 5, 'Bahwa nama tersebut pernah melakukan tindak kriminal sebagai berikut:', 0, 1, 'L'); // Teks Indonesia
+
+                $this->SetFont('Times', 'BIU', 11);
+                $this->MultiCell(0, 5, $cttkriminal, 0, 'C');
+
+            } else {
+                // Tidak ada catatan kriminal
+                $this->SetFont('Arial', 'BU', 11);
+                $this->Cell(0, 5, 'Bahwa nama tersebut tidak memiliki catatan atau keterlibatan dalam kegiatan kriminal apapun', 0, 1, 'L'); // Teks Indonesia
+
+                $this->SetFont('Arial', 'I', 11); // Italic untuk Inggris
+                $this->SetX($marginLeft); // indentasi ke kanan
+                $this->Cell(0, 3, 'the bearer hereof proves not to be involved in any criminal cases', 0, 1, 'L'); // Teks Inggris
+            }
+            $stmtKriminal->close();
 
             $this->Ln(2); // Jarak atas
 

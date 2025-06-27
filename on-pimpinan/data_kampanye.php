@@ -213,7 +213,7 @@ if (isset($_GET['hapus'])) {
                                         ?>
                                             <tr id="row-<?= $data['id_kampanye']; ?>">
                                                 <td class="text-center"><?= $no++; ?></td>
-                                                <td class="data-nama"><?= htmlspecialchars($data['nama']); ?></td>
+                                                <td class="data-nama"><?= htmlspecialchars($data['nama_kampanye']); ?></td>
                                                 <td class="data-deskripsi"><?= htmlspecialchars($data['deskripsi']); ?></td>
                                                 <td class="text-center">
                                                     <button class="btn btn-sm btn-warning" onclick="editKampanye(<?= $data['id_kampanye']; ?>)">

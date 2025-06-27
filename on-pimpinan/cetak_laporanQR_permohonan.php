@@ -33,8 +33,14 @@ $sql_laporan = "SELECT nama_pemohon, tanggal_pengajuan, jenis, detail
                     SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, 'SIK' AS jenis, CONCAT('Instansi: ', s.nama_instansi, ' | Penanggung Jawab: ', s.penanggung_jawab) AS detail
                     FROM sik s JOIN users u ON s.user_id = u.id_user
                     UNION ALL
-                    SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, 'STTP' AS jenis, CONCAT('Paslon: ', s.nama_paslon, ' | Kampanye: ', s.nama_kampanye) AS detail
-                    FROM sttp s JOIN users u ON s.user_id = u.id_user
+                    SELECT 
+                        u.nama AS nama_pemohon, 
+                        s.tanggal_pengajuan, 
+                        'STTP' AS jenis, 
+                        CONCAT('Paslon: ', s.nama_paslon, ' | Kampanye: ', k.nama_kampanye) AS detail
+                    FROM sttp s 
+                    JOIN users u ON s.user_id = u.id_user
+                    LEFT JOIN kampanye k ON s.kampanye_id = k.id_kampanye
                 ) AS semua $where_clause ORDER BY tanggal_pengajuan DESC";
 
 $result_laporan = mysqli_query($conn, $sql_laporan);
@@ -90,15 +96,69 @@ class PDF extends FPDF
         $this->SetFont('Arial','B',12);
         $judul = 'Laporan Data Permohonan';
         global $filter_jenis, $filter_bulan, $nama_bulan, $tahun_sekarang;
+        $this->Cell(0,10,$judul,0,1,'C');
+
+        // Paragraf penjelas
+        $jumlah_data = isset($GLOBALS['data_laporan']) ? count($GLOBALS['data_laporan']) : 0;
+        $paragraf = "Laporan Rekapitulasi Permohonan Administrasi pada Satuan Intelkam Polres Barito Kuala";
+        $jenis_text = '';
+        $bulan_text = '';
+        $tahun_text = '';
         if ($filter_jenis != 'semua') {
-            $judul .= " (Jenis: " . $filter_jenis . ")";
+            $jenis_text = strtoupper($filter_jenis);
         }
         if (!empty($filter_bulan)) {
-            $judul .= " (Bulan: " . $nama_bulan[intval($filter_bulan)] . ")";
-        } else {
-            $judul .= " (Tahun: " . $tahun_sekarang . ")";
+            $bulan_text = $nama_bulan[intval($filter_bulan)];
         }
-        $this->Cell(0,10,$judul,0,1,'C');
+        $tahun_text = $tahun_sekarang;
+
+        $this->SetFont('Arial','',9);
+        $this->Write(8, $paragraf);
+
+        if ($jenis_text && $bulan_text) {
+            $this->Write(8, " Jenis ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $jenis_text);
+            $this->SetFont('Arial','',9);
+            $this->Write(8, " Bulan ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $bulan_text);
+            $this->SetFont('Arial','',9);
+            $this->Write(8, " Tahun ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $tahun_text);
+            $this->SetFont('Arial','',9);
+        } elseif ($jenis_text) {
+            $this->Write(8, " Jenis ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $jenis_text);
+            $this->SetFont('Arial','',9);
+            $this->Write(8, " Tahun ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $tahun_text);
+            $this->SetFont('Arial','',9);
+        } elseif ($bulan_text) {
+            $this->Write(8, " Bulan ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $bulan_text);
+            $this->SetFont('Arial','',9);
+            $this->Write(8, " Tahun ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $tahun_text);
+            $this->SetFont('Arial','',9);
+        } else {
+            $this->Write(8, " Tahun ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $tahun_text);
+            $this->SetFont('Arial','',9);
+        }
+        $this->SetFont('Arial','',9);
+        $this->Write(8, ". Jumlah permohonan: ");
+        $this->SetFont('Arial','B',9);
+        $this->Write(8, $jumlah_data);
+        $this->SetFont('Arial','',9);
+        $this->Write(8, ".");
+        $this->Ln(10);
     }
 
     function Footer()
@@ -182,33 +242,167 @@ class PDF extends FPDF
 
     function FancyTable($header, $data)
     {
-        $this->SetFillColor(255,255,255);
+        // Tentukan header dan lebar kolom secara dinamis
+        $columns = [
+            ['label' => 'No', 'width' => 10, 'align' => 'C'],
+            ['label' => 'Nama Pemohon', 'width' => 30, 'align' => 'L'],
+            ['label' => 'Jenis', 'width' => 12, 'align' => 'L'],
+            ['label' => 'Tanggal Permohonan', 'width' => 37, 'align' => 'C'],
+            ['label' => 'Tanggal Kegiatan', 'width' => 32, 'align' => 'C'],
+            ['label' => 'Keterangan Umum', 'width' => 0, 'align' => 'L'], // 0 = otomatis sisa lebar
+        ];
+
+        // Hitung sisa lebar halaman untuk kolom terakhir
+        $totalWidth = $this->GetPageWidth() - $this->lMargin - $this->rMargin;
+        $fixedWidth = 0;
+        foreach ($columns as $col) {
+            if ($col['width'] > 0) $fixedWidth += $col['width'];
+        }
+        foreach ($columns as &$col) {
+            if ($col['width'] == 0) $col['width'] = $totalWidth - $fixedWidth;
+        }
+        unset($col);
+
+        // Header
+        $this->SetFillColor(230,230,230);
         $this->SetTextColor(0);
         $this->SetDrawColor(0,0,0);
         $this->SetLineWidth(.3);
-        $this->SetFont('','');
-
-        $w = array(10, 30, 30, 120);
         $this->SetFont('Arial','B',10);
-        for($i=0;$i<count($header);$i++)
-            $this->Cell($w[$i],7,$header[$i],1,0,'C',false);
+        foreach ($columns as $col) {
+            $this->Cell($col['width'], 7, $col['label'], 1, 0, $col['align'], true);
+        }
         $this->Ln();
+
+        // Data
         $this->SetFont('Arial','',10);
-        $fill = 0;
+        $fill = false;
         $no = 1;
-        foreach($data as $row)
-        {
-            $this->Cell($w[0],6,$no++,'1',0,'C',$fill);
-            $this->Cell($w[1],6,$row['jenis'],'1',0,'L',$fill);
-            $this->Cell($w[2],6,date('d-m-Y', strtotime($row['tanggal_pengajuan'])),'1',0,'C',$fill);
+        foreach ($data as $row) {
+            // Ambil tanggal kegiatan sesuai jenis
+            $tanggal_kegiatan = '-';
+            if ($row['jenis'] == 'STTP') {
+                // Ambil tgl_kampanye dari tabel sttp
+                $q = "SELECT tgl_kampanye FROM sttp WHERE tanggal_pengajuan = ? AND user_id = (SELECT id_user FROM users WHERE nama = ? LIMIT 1) LIMIT 1";
+                $stmt = $this->conn->prepare($q);
+                $tgl_kampanye = null;
+                $stmt->bind_param('ss', $row['tanggal_pengajuan'], $row['nama_pemohon']);
+                $stmt->execute();
+                $stmt->bind_result($tgl_kampanye);
+                if ($stmt->fetch() && $tgl_kampanye) {
+                    $tanggal_kegiatan = date('d-m-Y', strtotime($tgl_kampanye));
+                }
+                $stmt->close();
+            } elseif ($row['jenis'] == 'SIK') {
+                // Ambil tgl_kegiatan dari tabel sik
+                $q = "SELECT tgl_kegiatan FROM sik WHERE tanggal_pengajuan = ? AND user_id = (SELECT id_user FROM users WHERE nama = ? LIMIT 1) LIMIT 1";
+                $stmt = $this->conn->prepare($q);
+                $tgl_kegiatan = null;
+                $stmt->bind_param('ss', $row['tanggal_pengajuan'], $row['nama_pemohon']);
+                $stmt->execute();
+                $stmt->bind_result($tgl_kegiatan);
+                if ($stmt->fetch() && $tgl_kegiatan) {
+                    $tanggal_kegiatan = date('d-m-Y', strtotime($tgl_kegiatan));
+                }
+                $stmt->close();
+            }
+
+            $cellData = [
+                $no++,
+                $row['nama_pemohon'],
+                $row['jenis'],
+                date('d-m-Y', strtotime($row['tanggal_pengajuan'])),
+                $tanggal_kegiatan,
+                strip_tags($row['detail'])
+            ];
+
+            $cellHeights = [];
+            // Hitung tinggi baris berdasarkan multicell terpanjang (khusus kolom terakhir)
+            foreach ($columns as $i => $col) {
+                if ($i == count($columns) - 1) {
+                    $cellHeights[] = $this->NbLines($col['width'], $cellData[$i]) * 6;
+                } else {
+                    $cellHeights[] = 6;
+                }
+            }
+            $rowHeight = max($cellHeights);
+
             $x = $this->GetX();
             $y = $this->GetY();
-            $this->MultiCell($w[3],6,strip_tags($row['detail']),'1','L',$fill);
-            $this->SetXY($x + $w[3], $y);
-            $this->Ln();
-            $fill=!$fill;
+
+            // Cetak cell satu per satu, MultiCell hanya untuk kolom terakhir, posisi X/Y diatur manual
+            for ($i = 0; $i < count($columns); $i++) {
+                $col = $columns[$i];
+                $w = $col['width'];
+                $h = ($i == count($columns) - 1) ? $rowHeight : $rowHeight;
+                $align = $col['align'];
+                $txt = $cellData[$i];
+
+                if ($i == count($columns) - 1) {
+                    $this->SetXY($x, $y);
+                    $this->MultiCell($w, 6, $txt, 1, $align, $fill);
+                } else {
+                    $this->SetXY($x, $y);
+                    $this->Cell($w, $rowHeight, $txt, 1, 0, $align, $fill);
+                }
+                $x += $w;
+            }
+            $this->SetY($y + $rowHeight);
+            $fill = !$fill;
         }
-        $this->Cell(array_sum($w),0,'','T');
+        // Garis bawah tabel
+        $this->Cell($totalWidth, 0, '', 'T');
+    }
+
+    // Tambahkan fungsi bantu untuk menghitung jumlah baris pada multicell
+    function NbLines($w, $txt)
+    {
+        $cw = &$this->CurrentFont['cw'];
+        if($w==0)
+            $w = $this->w-$this->rMargin-$this->x;
+        $wmax = ($w-2*$this->cMargin)*1000/$this->FontSize;
+        $s = str_replace("\r",'',$txt);
+        $nb = strlen($s);
+        if($nb>0 and $s[$nb-1]=="\n")
+            $nb--;
+        $sep = -1;
+        $i = 0;
+        $j = 0;
+        $l = 0;
+        $nl = 1;
+        while($i<$nb)
+        {
+            $c = $s[$i];
+            if($c=="\n")
+            {
+                $i++;
+                $sep = -1;
+                $j = $i;
+                $l = 0;
+                $nl++;
+                continue;
+            }
+            if($c==' ')
+                $sep = $i;
+            $l += $cw[$c];
+            if($l > $wmax)
+            {
+                if($sep==-1)
+                {
+                    if($i==$j)
+                        $i++;
+                }
+                else
+                    $i = $sep+1;
+                $sep = -1;
+                $j = $i;
+                $l = 0;
+                $nl++;
+            }
+            else
+                $i++;
+        }
+        return $nl;
     }
 }
 

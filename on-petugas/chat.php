@@ -1,12 +1,12 @@
 <?php
 session_start();
+include '../include/koneksi.php';
 
+// Cek apakah pengguna sudah login
 if (!isset($_SESSION['nama']) || !isset($_SESSION['user_id'])) {
     header("Location: ../index.php");
     exit();
 }
-
-include '../include/koneksi.php';
 
 $id_petugas_login = $_SESSION['user_id'];
 $daftar_percakapan = [];
@@ -57,15 +57,33 @@ usort($daftar_percakapan, function ($a, $b) {
     return ($a['timestamp'] > $b['timestamp']) ? -1 : 1;
 });
 
+// Proses hapus percakapan (jika ada)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['hapus_percakapan'])) {
+    $id_pemohon_hapus = mysqli_real_escape_string($conn, $_POST['id_pemohon']);
+
+    // Hapus semua percakapan dengan pemohon
+    $query = "DELETE FROM chat WHERE id_pengirim = ? OR id_penerima = ?";
+    $stmt = mysqli_prepare($conn, $query);
+    mysqli_stmt_bind_param($stmt, "ii", $id_pemohon_hapus, $id_pemohon_hapus);
+    $result = mysqli_stmt_execute($stmt);
+
+    if ($result) {
+        echo 'success';
+    } else {
+        echo 'Gagal menghapus percakapan.';
+    }
+    exit();
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr" data-nav-layout="vertical" data-theme-mode="light" data-header-styles="light"
     data-menu-styles="dark" data-toggled="close">
 
 <head>
     <?php include 'head.php'; ?>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
     <div id="loader">
         <img src="../assets/images/media/media-79.svg" alt="">
@@ -78,7 +96,7 @@ usort($daftar_percakapan, function ($a, $b) {
         </header>
         <aside class="app-sidebar sticky" id="sidebar">
             <div class="main-sidebar-header">
-                <a href="index.html" class="header-logo">
+                <a href="index.php" class="header-logo">
                     <img src="../assets/images/brand-logos/desktop-white.png" class="desktop-white" alt="logo">
                     <img src="../assets/images/brand-logos/toggle-white.png" class="toggle-white" alt="logo">
                     <img src="../assets/images/brand-logos/desktop-logo.png" class="desktop-logo" alt="logo">
@@ -103,24 +121,70 @@ usort($daftar_percakapan, function ($a, $b) {
                 <div class="row row-sm">
                     <div class="container-fluid">
                         <div class="card shadow-lg p-4">
-
                             <h5 class="mb-4">Daftar Percakapan</h5>
-
                             <div class="list-group" style="max-height: 400px; overflow-y: auto;">
-                                <?php if (!empty($daftar_percakapan)): ?>
-                                    <?php foreach ($daftar_percakapan as $percakapan): ?>
-                                        <a href="#" class="list-group-item list-group-item-action d-flex align-items-start" data-id-pemohon="<?php echo $percakapan['id_pemohon']; ?>" style="cursor: pointer;">
+                                <?php
+                                // Ambil semua pesan yang pernah dikirim ke/oleh petugas login, urutkan terbaru
+                                $query_all = "SELECT c.*, u.username 
+                                              FROM chat c 
+                                              JOIN users u ON u.id_user = c.id_pengirim
+                                              WHERE c.id_pengirim = ? OR c.id_penerima = ?
+                                              ORDER BY c.timestamp DESC";
+                                $stmt_all = mysqli_prepare($conn, $query_all);
+                                mysqli_stmt_bind_param($stmt_all, "ii", $id_petugas_login, $id_petugas_login);
+                                mysqli_stmt_execute($stmt_all);
+                                $result_all = mysqli_stmt_get_result($stmt_all);
+
+                                $percakapan_terakhir = [];
+                                while ($row = mysqli_fetch_assoc($result_all)) {
+                                    // Tentukan id lawan bicara (pemohon)
+                                    if ($row['id_pengirim'] == $id_petugas_login) {
+                                        $id_pemohon = $row['id_penerima'];
+                                    } else {
+                                        $id_pemohon = $row['id_pengirim'];
+                                    }
+                                    // Hanya tampilkan percakapan dengan pemohon (role)
+                                    $query_role = "SELECT role, username FROM users WHERE id_user = ?";
+                                    $stmt_role = mysqli_prepare($conn, $query_role);
+                                    mysqli_stmt_bind_param($stmt_role, "i", $id_pemohon);
+                                    mysqli_stmt_execute($stmt_role);
+                                    $result_role = mysqli_stmt_get_result($stmt_role);
+                                    $user_role = mysqli_fetch_assoc($result_role);
+                                    if ($user_role && $user_role['role'] == 'pemohon') {
+                                        if (!isset($percakapan_terakhir[$id_pemohon])) {
+                                            $percakapan_terakhir[$id_pemohon] = [
+                                                'id_pemohon' => $id_pemohon,
+                                                'username' => $user_role['username'],
+                                                'pesan_terakhir' => $row['pesan'],
+                                                'timestamp' => $row['timestamp'],
+                                            ];
+                                        }
+                                    }
+                                }
+                                if (!empty($percakapan_terakhir)):
+                                    foreach ($percakapan_terakhir as $percakapan):
+                                ?>
+                                    <div class="list-group-item d-flex align-items-center justify-content-between" data-id-pemohon="<?php echo $percakapan['id_pemohon']; ?>">
+                                        <div class="d-flex align-items-start">
                                             <img src="../assets/images/faces/4.jpg" alt="<?php echo htmlspecialchars($percakapan['username']); ?>" class="rounded-circle me-3 mt-1" style="width: 50px; height: 50px;">
-                                            <div class="flex-grow-1">
+                                            <div>
                                                 <div class="fw-bold"><?php echo htmlspecialchars($percakapan['username']); ?></div>
                                                 <div class="text-muted text-truncate" style="max-width: 250px;"><?php echo htmlspecialchars($percakapan['pesan_terakhir']); ?></div>
                                             </div>
+                                        </div>
+                                        <div class="d-flex flex-column align-items-end ms-3">
                                             <?php if ($percakapan['timestamp']): ?>
-                                                <small class="text-muted text-nowrap ms-auto"><?php echo date('H:i', strtotime($percakapan['timestamp'])); ?></small>
+                                                <small class="text-muted text-nowrap mb-2"><?php echo date('H:i', strtotime($percakapan['timestamp'])); ?></small>
                                             <?php endif; ?>
-                                        </a>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
+                                            <button class="btn btn-sm btn-outline-danger delete-conversation" data-id-pemohon="<?php echo $percakapan['id_pemohon']; ?>">
+                                                <i class="fe fe-trash"></i> Hapus
+                                            </button>
+                                        </div>
+                                    </div>
+                                <?php
+                                    endforeach;
+                                else:
+                                ?>
                                     <div class="list-group-item">Belum ada percakapan.</div>
                                 <?php endif; ?>
                             </div>
@@ -136,111 +200,50 @@ usort($daftar_percakapan, function ($a, $b) {
         <div id="responsive-overlay"></div>
         <footer class="footer mt-auto py-3 bg-white text-center">
             <div class="container">
+                
                 <?php include 'foot.php'; ?>
+                
             </div>
         </footer>
 
-        <div class="modal fade" id="chatModal" tabindex="-1" aria-labelledby="chatModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-scrollable">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="chatModalLabel">Chat dengan <span id="nama-pemohon-modal"></span></h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body" id="isi-chat-modal">
-                    </div>
-                    <div class="modal-footer">
-                        <form id="form-balas" method="post" class="w-100">
-                            <input type="hidden" name="id_pemohon_balas" id="id-pemohon-balas">
-                            <div class="d-flex align-items-center">
-                                <textarea class="form-control rounded-start me-2" name="balasan_modal" placeholder="Tulis balasan Anda di sini..."></textarea>
-                                <button class="btn btn-primary rounded-end" type="submit"><i class="fas fa-paper-plane"></i> Kirim</button>
-                            </div>
-                            <div id="error-balas-modal" class="mt-2 text-danger"></div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <?php include 'script.php'; ?>
         <script>
-            const chatModal = new bootstrap.Modal(document.getElementById('chatModal'));
-            const listGroupItems = document.querySelectorAll('.list-group-item-action');
-            const modalBody = document.getElementById('isi-chat-modal');
-            const modalTitlePemohon = document.getElementById('nama-pemohon-modal');
-            const formBalas = document.getElementById('form-balas');
-            const idPemohonBalasInput = document.getElementById('id-pemohon-balas');
-            const errorBalasModal = document.getElementById('error-balas-modal');
+            document.addEventListener('DOMContentLoaded', function() {
+                const deleteConversationButtons = document.querySelectorAll('.delete-conversation');
 
-            listGroupItems.forEach(item => {
-                item.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const idPemohon = this.getAttribute('data-id-pemohon');
-                    const usernamePemohon = this.querySelector('.fw-bold').textContent;
+                deleteConversationButtons.forEach(button => {
+                    button.addEventListener('click', function(e) {
+                        const idPemohon = this.getAttribute('data-id-pemohon');
 
-                    modalTitlePemohon.textContent = usernamePemohon;
-                    idPemohonBalasInput.value = idPemohon;
-                    modalBody.innerHTML = '<div class="text-center">Memuat pesan...</div>';
-                    chatModal.show();
-
-                    // Muat isi chat menggunakan AJAX
-                    fetch('get_chat_modal.php?id_pemohon=' + idPemohon)
-                        .then(response => response.text())
-                        .then(data => {
-                            modalBody.innerHTML = data;
-                            modalBody.scrollTop = modalBody.scrollHeight; // Scroll ke bawah
-                        })
-                        .catch(error => {
-                            modalBody.innerHTML = '<div class="alert alert-danger">Gagal memuat pesan.</div>';
-                            console.error('Error:', error);
-                        });
+                        // Konfirmasi penghapusan seluruh percakapan
+                        if (confirm('Apakah Anda yakin ingin menghapus seluruh percakapan dengan pemohon ini?')) {
+                            fetch('chat.php', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                },
+                                body: 'hapus_percakapan=true&id_pemohon=' + idPemohon
+                            })
+                            .then(response => response.text())
+                            .then(data => {
+                                if (data === 'success') {
+                                    // Hapus percakapan dari tampilan daftar percakapan
+                                    const conversationItem = this.closest('.list-group-item');
+                                    conversationItem.remove();
+                                    alert('Percakapan berhasil dihapus.');
+                                } else {
+                                    alert('Gagal menghapus percakapan.');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Terjadi kesalahan saat menghapus percakapan.');
+                            });
+                        }
+                    });
                 });
             });
-
-            formBalas.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const idPemohon = idPemohonBalasInput.value;
-                const balasan = this.querySelector('textarea').value;
-
-                if (balasan.trim() !== '') {
-                    fetch('kirim_balasan_modal.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                            },
-                            body: 'id_penerima=' + idPemohon + '&balasan=' + encodeURIComponent(balasan)
-                        })
-                        .then(response => response.text())
-                        .then(data => {
-                            if (data === 'success') {
-                                // Reload isi chat setelah berhasil mengirim
-                                fetch('get_chat_modal.php?id_pemohon=' + idPemohon)
-                                    .then(response => response.text())
-                                    .then(newData => {
-                                        modalBody.innerHTML = newData;
-                                        modalBody.scrollTop = modalBody.scrollHeight;
-                                        formBalas.querySelector('textarea').value = ''; // Kosongkan textarea
-                                        errorBalasModal.textContent = '';
-                                    })
-                                    .catch(error => {
-                                        errorBalasModal.textContent = 'Gagal memperbarui pesan.';
-                                        console.error('Error:', error);
-                                    });
-                            } else {
-                                errorBalasModal.textContent = data; // Tampilkan pesan error dari server
-                            }
-                        })
-                        .catch(error => {
-                            errorBalasModal.textContent = 'Terjadi kesalahan saat mengirim pesan.';
-                            console.error('Error:', error);
-                        });
-                } else {
-                    errorBalasModal.textContent = 'Balasan tidak boleh kosong.';
-                }
-            });
         </script>
-
+    </div>
 </body>
-
 </html>

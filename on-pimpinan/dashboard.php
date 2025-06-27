@@ -210,14 +210,10 @@ sort($all_months);
                         <div class="card-body">
                             <canvas id="statistik-berkas" class="chartjs-chart"></canvas>
                             <div class="mt-3 text-end">
-                                <a href="cetak_laporan_statistik.php" class="btn btn-success me-2" target="_blank">
-                                    <i class="fas fa-print me-2"></i>
+                                <a href="cetak_laporan_statistik.php" class="btn btn-danger me-2" target="_blank">
+                                    <i class="fas fa-file-pdf me-2"></i>
                                     Unduh PDF Laporan Statistik Pelayanan
                                 </a>
-                                <button class="btn btn-primary" onclick="downloadStatistik()">
-                                    <i class="fas fa-download me-2"></i>
-                                    Unduh CSV Laporan Statistik Pelayanan
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -231,10 +227,15 @@ sort($all_months);
                     <div class="card-body">
                         <canvas id="surveyChart" height="250"></canvas>
                     </div>
+                    <div class="card-footer text-end">
+                        <a href="cetak_laporan_HasilSurveyLayanan.php" class="btn btn-danger" target="_blank">
+                            <i class="fas fa-file-pdf me-2"></i>
+                            Unduh PDF Hasil Survey Layanan
+                        </a>
+                    </div>
                 </div>
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
-                        // Ambil data rata-rata jawaban survei dari PHP
                         fetch('get_survey_data.php')
                             .then(response => response.json())
                             .then(data => {
@@ -242,23 +243,68 @@ sort($all_months);
                                 const averageScores = data.averageScores;
 
                                 const ctx = document.getElementById('surveyChart').getContext('2d');
-                                const myChart = new Chart(ctx, {
+                                new Chart(ctx, {
                                     type: 'bar',
                                     data: {
                                         labels: labels,
                                         datasets: [{
-                                            label: 'Rata-rata Skor',
+                                            label: 'Rata-rata Skor Survei',
                                             data: averageScores,
-                                            backgroundColor: 'rgba(54, 162, 235, 0.8)',
-                                            borderColor: 'rgba(54, 162, 235, 1)',
+                                            backgroundColor: [
+                                                '#007bff', '#28a745', '#ffc107', '#17a2b8', '#dc3545', '#6f42c1', '#fd7e14'
+                                            ],
+                                            borderColor: [
+                                                '#0056b3', '#1e7e34', '#d39e00', '#117a8b', '#bd2130', '#4e267a', '#c05600'
+                                            ],
                                             borderWidth: 1
                                         }]
                                     },
                                     options: {
+                                        responsive: true,
+                                        plugins: {
+                                            legend: {
+                                                display: false
+                                            },
+                                            title: {
+                                                display: true,
+                                                text: 'Rata-rata Hasil Survey Kepuasan Masyarakat',
+                                                font: {
+                                                    size: 18
+                                                }
+                                            },
+                                            tooltip: {
+                                                callbacks: {
+                                                    label: function(context) {
+                                                        let value = context.parsed.y;
+                                                        let label = context.dataset.label || '';
+                                                        return `${label}: ${value.toFixed(2)} dari 4`;
+                                                    }
+                                                }
+                                            }
+                                        },
                                         scales: {
                                             y: {
                                                 beginAtZero: true,
-                                                max: 4 // Skala maksimum sesuai dengan nilai tertinggi survei (sangat setuju)
+                                                max: 4,
+                                                title: {
+                                                    display: true,
+                                                    text: 'Skor (1 = Tidak Setuju, 4 = Sangat Setuju)'
+                                                },
+                                                ticks: {
+                                                    stepSize: 1
+                                                },
+                                                grid: {
+                                                    color: '#e9ecef'
+                                                }
+                                            },
+                                            x: {
+                                                title: {
+                                                    display: true,
+                                                    text: 'Pertanyaan Survei'
+                                                },
+                                                grid: {
+                                                    display: false
+                                                }
                                             }
                                         }
                                     }
@@ -266,7 +312,7 @@ sort($all_months);
                             })
                             .catch(error => {
                                 console.error('Error fetching survey data:', error);
-                                document.getElementById('surveyChart').innerHTML = '<p class="text-danger">Gagal memuat data survei.</p>';
+                                document.getElementById('surveyChart').insertAdjacentHTML('beforebegin', '<p class="text-danger">Gagal memuat data survei.</p>');
                             });
                     });
                 </script>
@@ -292,45 +338,98 @@ sort($all_months);
     <!-- Footer End -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const statistikBerkasCanvas = document.getElementById('statistik-berkas').getContext('2d');
+            const ctx = document.getElementById('statistik-berkas').getContext('2d');
             const allMonths = <?php echo json_encode($all_months); ?>;
             const statistikSKCK = <?php echo json_encode($statistik_skck); ?>;
             const statistikSIK = <?php echo json_encode($statistik_sik); ?>;
             const statistikSTTP = <?php echo json_encode($statistik_sttp); ?>;
 
-            const skckData = allMonths.map(month => statistikSKCK[month] || 0);
-            const sikData = allMonths.map(month => statistikSIK[month] || 0);
-            const sttpData = allMonths.map(month => statistikSTTP[month] || 0);
+            // Ambil data per bulan, jika tidak ada isi 0
+            const skckData = allMonths.map(month => statistikSKCK[month] !== undefined ? statistikSKCK[month] : 0);
+            const sikData = allMonths.map(month => statistikSIK[month] !== undefined ? statistikSIK[month] : 0);
+            const sttpData = allMonths.map(month => statistikSTTP[month] !== undefined ? statistikSTTP[month] : 0);
 
-            new Chart(statistikBerkasCanvas, {
+            // Jika semua data 0, tampilkan pesan
+            const totalData = skckData.reduce((a, b) => a + b, 0) + sikData.reduce((a, b) => a + b, 0) + sttpData.reduce((a, b) => a + b, 0);
+            if (totalData === 0) {
+                ctx.font = "16px Arial";
+                ctx.fillStyle = "#888";
+                ctx.textAlign = "center";
+                ctx.fillText("Belum ada data statistik pelayanan.", ctx.canvas.width / 2, ctx.canvas.height / 2);
+                return;
+            }
+
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: allMonths,
-                    datasets: [{
-                        label: 'SKCK',
-                        data: skckData,
-                        borderColor: '#007bff',
-                        fill: false
-                    }, {
-                        label: 'SIK',
-                        data: sikData,
-                        borderColor: '#28a745',
-                        fill: false
-                    }, {
-                        label: 'STTP',
-                        data: sttpData,
-                        borderColor: '#ffc107',
-                        fill: false
-                    }]
+                    datasets: [
+                        {
+                            label: 'SKCK',
+                            data: skckData,
+                            borderColor: '#007bff',
+                            backgroundColor: 'rgba(0,123,255,0.2)',
+                            fill: true,
+                            tension: 0.3,
+                            pointBackgroundColor: '#007bff',
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        },
+                        {
+                            label: 'SIK',
+                            data: sikData,
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40,167,69,0.2)',
+                            fill: true,
+                            tension: 0.3,
+                            pointBackgroundColor: '#28a745',
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        },
+                        {
+                            label: 'STTP',
+                            data: sttpData,
+                            borderColor: '#ffc107',
+                            backgroundColor: 'rgba(255,193,7,0.2)',
+                            fill: true,
+                            tension: 0.3,
+                            pointBackgroundColor: '#ffc107',
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Statistik Pengajuan SKCK, SIK, STTP per Bulan'
+                        },
+                        tooltip: {
+                            enabled: true,
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
                     scales: {
                         y: {
                             beginAtZero: true,
                             title: {
                                 display: true,
                                 text: 'Jumlah Pengajuan'
+                            },
+                            ticks: {
+                                stepSize: 1
                             }
                         },
                         x: {

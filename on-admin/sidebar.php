@@ -22,6 +22,18 @@
                         <a href="data_pengguna.php" class="side-menu__item">Data Pengguna</a>
                     </li>
                     <li class="slide">
+                        <a href="data_berita.php" class="side-menu__item">Data Berita</a>
+                    </li>
+                    <li class="slide">
+                        <a href="data_kecamatan.php" class="side-menu__item">Data Kecamatan</a>
+                    </li>
+                    <li class="slide">
+                        <a href="data_pekerjaan.php" class="side-menu__item">Data Pekerjaan</a>
+                    </li>
+                    <li class="slide">
+                        <a href="data_personil.php" class="side-menu__item">Data Personil Sat Intelkam</a>
+                    </li>
+                    <li class="slide">
                         <a href="data_pengajuan.php" class="side-menu__item">Data Permohonan</a>
                     </li>
                     <li class="slide">

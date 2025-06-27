@@ -52,9 +52,40 @@ if (isset($_GET['hapus'])) {
 
 
     function hapusKeramaian(id) {
-        if (confirm('Yakin ingin menghapus data keramaian ini?')) {
-            window.location = `?hapus=${id}`;
+        // Buat modal konfirmasi jika belum ada
+        let modal = document.getElementById('modalHapusKeramaian');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal fade" id="modalHapusKeramaian" tabindex="-1" aria-labelledby="modalHapusKeramaianLabel" aria-hidden="true">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <div class="modal-header bg-danger">
+                        <h5 class="modal-title text-white" id="modalHapusKeramaianLabel">Konfirmasi Hapus</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        Apakah Anda yakin ingin menghapus jenis keramaian ini?
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="button" class="btn btn-danger" id="btnKonfirmasiHapusKeramaian">Hapus</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
         }
+
+        // Tampilkan modal
+        var bsModal = new bootstrap.Modal(document.getElementById('modalHapusKeramaian'));
+        bsModal.show();
+
+        // Set event tombol hapus
+        document.getElementById('btnKonfirmasiHapusKeramaian').onclick = function() {
+            window.location = `?hapus=${id}`;
+        };
     }
 
     // Filter table by role
@@ -177,27 +208,64 @@ if (isset($_GET['hapus'])) {
                             </div>
                             <div class="card-body table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabelKeramaian">
-                                    <thead class="table-primary text-center">
+                                    <!-- Modal Notifikasi -->
+                                    <?php if (isset($_SESSION['error']) || isset($_SESSION['success'])): ?>
+                                        <div class="modal fade" id="notifModal" tabindex="-1" aria-labelledby="notifModalLabel" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header <?= isset($_SESSION['error']) ? 'bg-danger' : 'bg-success'; ?>">
+                                                        <h5 class="modal-title text-white" id="notifModalLabel">
+                                                            <?= isset($_SESSION['error']) ? 'Gagal!' : 'Berhasil!'; ?>
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <?= isset($_SESSION['error']) ? $_SESSION['error'] : $_SESSION['success']; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <script>
+                                            // Tampilkan modal setelah halaman dimuat
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                var notifModal = new bootstrap.Modal(document.getElementById('notifModal'));
+                                                notifModal.show();
+                                            });
+                                        </script>
+                                        <?php unset($_SESSION['error'], $_SESSION['success']); ?>
+                                    <?php endif; ?>
+                                    <thead class="table-primary text-center align-middle">
                                         <tr>
-                                            <th>No</th>
+                                            <th style="width: 50px;">No</th>
                                             <th>Jenis Keramaian</th>
-                                            <th>Aksi</th>
+                                            <th style="width: 120px;">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php
-                                        $query = mysqli_query($conn, "SELECT * FROM jeniskeramaian");
-                                        $no = 1;
+                                        // Pagination setup
+                                        $perPage = 10;
+                                        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+                                        if ($page < 1) $page = 1;
+                                        $start = ($page - 1) * $perPage;
+
+                                        $totalQuery = mysqli_query($conn, "SELECT COUNT(*) as total FROM jeniskeramaian");
+                                        $totalData = mysqli_fetch_assoc($totalQuery);
+                                        $totalRows = $totalData['total'];
+                                        $totalPages = ceil($totalRows / $perPage);
+
+                                        $query = mysqli_query($conn, "SELECT * FROM jeniskeramaian ORDER BY id_keramaian DESC LIMIT $start, $perPage");
+                                        $no = $start + 1;
                                         while ($data = mysqli_fetch_assoc($query)) {
                                         ?>
                                             <tr id="row-<?= $data['id_keramaian']; ?>">
                                                 <td class="text-center"><?= $no++; ?></td>
                                                 <td class="data-nama"><?= htmlspecialchars($data['nama_keramaian']); ?></td>
                                                 <td class="text-center">
-                                                    <button class="btn btn-sm btn-warning" onclick="editKeramaian(<?= $data['id_keramaian']; ?>)">
+                                                    <button class="btn btn-sm btn-warning" onclick="editKeramaian(<?= $data['id_keramaian']; ?>)" title="Edit">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
-                                                    <button class="btn btn-sm btn-danger" onclick="hapusKeramaian(<?= $data['id_keramaian']; ?>)">
+                                                    <button class="btn btn-sm btn-danger" onclick="hapusKeramaian(<?= $data['id_keramaian']; ?>)" title="Hapus">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </td>
@@ -205,6 +273,44 @@ if (isset($_GET['hapus'])) {
                                         <?php } ?>
                                     </tbody>
                                 </table>
+                                <!-- Pagination Preview -->
+                                <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap">
+                                    <div>
+                                        <small>
+                                            Menampilkan
+                                            <b><?= min($start + 1, $totalRows); ?></b>
+                                            -
+                                            <b><?= min($start + $perPage, $totalRows); ?></b>
+                                            dari <b><?= $totalRows; ?></b> jenis keramaian
+                                        </small>
+                                    </div>
+                                    <nav>
+                                        <ul class="pagination pagination-sm mb-0">
+                                            <li class="page-item<?= ($page <= 1) ? ' disabled' : ''; ?>">
+                                                <a class="page-link" href="?page=<?= $page - 1; ?>" tabindex="-1">&laquo;</a>
+                                            </li>
+                                            <?php
+                                            for ($i = 1; $i <= $totalPages; $i++) {
+                                                if ($i == $page || ($i <= 2 || $i > $totalPages - 2 || abs($i - $page) <= 1)) {
+                                                    // Show first 2, last 2, and 1 around current
+                                            ?>
+                                                    <li class="page-item<?= ($i == $page) ? ' active' : ''; ?>">
+                                                        <a class="page-link" href="?page=<?= $i; ?>"><?= $i; ?></a>
+                                                    </li>
+                                            <?php
+                                                } elseif ($i == 3 && $page > 4) {
+                                                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                                } elseif ($i == $totalPages - 2 && $page < $totalPages - 3) {
+                                                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                                }
+                                            }
+                                            ?>
+                                            <li class="page-item<?= ($page >= $totalPages) ? ' disabled' : ''; ?>">
+                                                <a class="page-link" href="?page=<?= $page + 1; ?>">&raquo;</a>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -218,11 +324,6 @@ if (isset($_GET['hapus'])) {
                         document.getElementById('nama_keramaian').value = nama; // Pastikan ada input dengan id 'nama_keramaian' di form edit Anda
                     }
 
-                    function hapusKeramaian(id) {
-                        if (confirm('Yakin ingin menghapus data jenis keramaian ini?')) {
-                            window.location = `?hapus=${id}`;
-                        }
-                    }
 
                     function cariDataKeramaian() {
                         const input = document.getElementById("cariInputKeramaian");

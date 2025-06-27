@@ -8,14 +8,6 @@
                     <span class="side-menu__label">Dashboard</span>
                 </a>
             </li>
-
-            <li class="slide">
-                <a href="ttd_digital.php" class="side-menu__item">
-                    <i class="fas fa-book side-menu__icon"></i>
-                    <span class="side-menu__label">Laporan</span>
-                </a>
-            </li>
-
             <li class="slide has-sub">
                 <a href="javascript:void(0);" class="side-menu__item">
                     <span class="shape1"></span>
@@ -37,13 +29,13 @@
                     <li class="slide">
                         <a href="data_kriminal.php" class="side-menu__item">Data Kriminal</a>
                     </li>
-                    <li class="slide">
-                        <a href="data_keramaian.php" class="side-menu__item">Data Keramaian</a>
-                    </li>
-                    <li class="slide">
-                        <a href="data_kampanye.php" class="side-menu__item">Data Kampanye</a>
-                    </li>
                 </ul>
+            </li>
+            <li class="slide">
+                <a href="ttd_digital.php" class="side-menu__item">
+                    <i class="fas fa-book side-menu__icon"></i>
+                    <span class="side-menu__label">Laporan</span>
+                </a>
             </li>
             <li class="slide">
                 <a href="arsip_digital.php" class="side-menu__item">

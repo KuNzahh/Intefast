@@ -64,6 +64,13 @@ class PDF extends FPDF
         $this->SetFont('Arial', 'B', 12);
         $judul = 'Laporan Data Personil Satuan Intelkam';
         $this->Cell(0, 10, $judul, 0, 1, 'C');
+
+        $this->Ln(3);
+        $this->SetFont('Arial', '', 11);
+        $this->SetX($this->lMargin);
+        $paragraf = "Laporan Data Personil Satuan Intelkam ini berisi informasi terkini tentang identitas, jabatan, dan NRP personil di lingkungan Satuan Intelijen dan Keamanan Polres Barito Kuala. Dokumen ini bersifat resmi dan digunakan sebagai acuan administrasi serta pelaksanaan tugas, dengan tetap menjaga kerahasiaan data demi mendukung profesionalisme institusi Kepolisian.";
+        $this->MultiCell(0, 7, $paragraf, 0, 'J');
+        $this->Ln(5);
     }
 
     function Footer()
@@ -144,25 +151,102 @@ class PDF extends FPDF
         }
     }
 
-    // Hitung jumlah baris teks berdasarkan lebar kolom
+    // Fungsi tabel fleksibel: header & kolom dinamis, lebar otomatis
+    function FancyTable($columns, $data)
+    {
+        // Hitung sisa lebar halaman untuk kolom dengan width 0 (otomatis)
+        $totalWidth = $this->GetPageWidth() - $this->lMargin - $this->rMargin;
+        $fixedWidth = 0;
+        foreach ($columns as $col) {
+            if ($col['width'] > 0) $fixedWidth += $col['width'];
+        }
+        foreach ($columns as &$col) {
+            if ($col['width'] == 0) $col['width'] = $totalWidth - $fixedWidth;
+        }
+        unset($col);
+
+        // Header
+        $this->SetFillColor(230,230,230);
+        $this->SetTextColor(0);
+        $this->SetDrawColor(0,0,0);
+        $this->SetLineWidth(.3);
+        $this->SetFont('Arial','B',10);
+        foreach ($columns as $col) {
+            $this->Cell($col['width'], 7, $col['label'], 1, 0, $col['align'], true);
+        }
+        $this->Ln();
+
+        // Data
+        $this->SetFont('Arial','',10);
+        $fill = false;
+        $no = 1;
+        foreach ($data as $row) {
+            // Siapkan data baris
+            $cellData = [];
+            foreach ($columns as $i => $col) {
+                if (isset($col['field'])) {
+                    if ($col['field'] === 'no') {
+                        $cellData[] = $no;
+                    } else {
+                        $cellData[] = isset($row[$col['field']]) ? $row[$col['field']] : '';
+                    }
+                } else {
+                    // fallback: urutan
+                    $cellData[] = isset($row[$i]) ? $row[$i] : '';
+                }
+            }
+            $no++;
+
+            // Hitung tinggi baris berdasarkan multicell terpanjang
+            $cellHeights = [];
+            foreach ($columns as $i => $col) {
+                $cellHeights[] = $this->NbLines($col['width'], $cellData[$i]) * 6;
+            }
+            $rowHeight = max($cellHeights);
+
+            $x = $this->GetX();
+            $y = $this->GetY();
+
+            // Cetak cell satu per satu, MultiCell untuk wrap, posisi X/Y diatur manual
+            for ($i = 0; $i < count($columns); $i++) {
+                $col = $columns[$i];
+                $w = $col['width'];
+                $align = $col['align'];
+                $txt = $cellData[$i];
+
+                $this->SetXY($x, $y);
+                $this->MultiCell($w, 6, $txt, 1, $align, $fill);
+                $x += $w;
+                $this->SetXY($x, $y);
+            }
+            $this->SetY($y + $rowHeight);
+            $fill = !$fill;
+        }
+        // Garis bawah tabel
+        $this->Cell($totalWidth, 0, '', 'T');
+    }
+
+    // Fungsi bantu: hitung jumlah baris pada multicell
     function NbLines($w, $txt)
     {
         $cw = &$this->CurrentFont['cw'];
-        if ($w == 0)
-            $w = $this->w - $this->rMargin - $this->x;
-        $wmax = ($w - 2 * $this->cMargin) * 1000 / $this->FontSize;
-        $s = str_replace("\r", '', $txt);
+        if($w==0)
+            $w = $this->w-$this->rMargin-$this->x;
+        $wmax = ($w-2*$this->cMargin)*1000/$this->FontSize;
+        $s = str_replace("\r",'',$txt);
         $nb = strlen($s);
-        if ($nb > 0 and $s[$nb - 1] == "\n")
+        if($nb>0 and $s[$nb-1]=="\n")
             $nb--;
         $sep = -1;
         $i = 0;
         $j = 0;
         $l = 0;
         $nl = 1;
-        while ($i < $nb) {
+        while($i<$nb)
+        {
             $c = $s[$i];
-            if ($c == "\n") {
+            if($c=="\n")
+            {
                 $i++;
                 $sep = -1;
                 $j = $i;
@@ -170,86 +254,27 @@ class PDF extends FPDF
                 $nl++;
                 continue;
             }
-            if ($c == ' ')
+            if($c==' ')
                 $sep = $i;
             $l += $cw[$c];
-            if ($l > $wmax) {
-                if ($sep == -1) {
-                    if ($i == $j)
+            if($l > $wmax)
+            {
+                if($sep==-1)
+                {
+                    if($i==$j)
                         $i++;
-                } else
-                    $i = $sep + 1;
+                }
+                else
+                    $i = $sep+1;
                 $sep = -1;
                 $j = $i;
                 $l = 0;
                 $nl++;
-            } else
+            }
+            else
                 $i++;
         }
         return $nl;
-    }
-
-    // Fungsi untuk menampilkan tabel personil
-    function TabelPersonil($header, $data)
-    {
-        // Lebar kolom: No, Nama, Jabatan, NRP
-        $w = array(12, 60, 60, 50);
-        $align = array('C', 'L', 'L', 'L');
-
-        // Header
-        $this->SetFont('Arial', 'B', 10);
-        foreach ($header as $i => $col) {
-            $this->Cell($w[$i], 7, $col, 1, 0, $align[$i]);
-        }
-        $this->Ln();
-
-        // Data
-        $this->SetFont('Arial', '', 10);
-        $no = 1;
-
-        foreach ($data as $row) {
-            // Hitung jumlah baris yang dibutuhkan oleh masing-masing kolom
-            $lines_nama    = $this->NbLines($w[1], $row['nama']);
-            $lines_jabatan = $this->NbLines($w[2], $row['jabatan']);
-            $lines_nrp     = $this->NbLines($w[3], $row['nrp']);
-            $max_lines     = max($lines_nama, $lines_jabatan, $lines_nrp);
-            $row_height    = 5 * $max_lines;
-
-            // Cek jika perlu page break
-            $this->CheckPageBreak($row_height);
-
-            // Simpan posisi awal
-            $x = $this->GetX();
-            $y = $this->GetY();
-
-            // Kolom No
-            $this->MultiCell($w[0], $row_height, $no++, 1, $align[0]);
-            $this->SetXY($x + $w[0], $y);
-
-            // Kolom Nama
-            $this->MultiCell($w[1], 5, $row['nama'], 1, $align[1]);
-            $this->SetXY($x + $w[0] + $w[1], $y);
-
-            // Kolom Jabatan
-            $this->MultiCell($w[2], 5, $row['jabatan'], 1, $align[2]);
-            $this->SetXY($x + $w[0] + $w[1] + $w[2], $y);
-
-            // Kolom NRP (yang sebelumnya bermasalah)
-            $this->MultiCell($w[3], 5, $row['nrp'], 1, $align[3]);
-
-            // Set posisi ke bawah untuk baris berikutnya
-            $this->SetY($y + $row_height);
-        }
-
-        // Garis penutup bawah
-        $this->Cell(array_sum($w), 0, '', 'T');
-    }
-    // Cek apakah perlu page break
-    function CheckPageBreak($h)
-    {
-        if ($this->GetY() + $h > $this->PageBreakTrigger) {
-            $this->AddPage($this->CurOrientation);
-        }
     }
 }
 
@@ -261,5 +286,12 @@ $pdf->SetMargins(10, 20, 10);
 $pdf->SetAutoPageBreak(true, 40);
 $pdf->AddPage();
 $header = array('No', 'Nama', 'Jabatan', 'NRP');
-$pdf->TabelPersonil($header, $data_personil);
+// Definisikan kolom untuk FancyTable
+$columns = [
+    ['label' => 'No', 'field' => 'no', 'width' => 10, 'align' => 'C'],
+    ['label' => 'Nama', 'field' => 'nama', 'width' => 60, 'align' => 'L'],
+    ['label' => 'Jabatan', 'field' => 'jabatan', 'width' => 60, 'align' => 'L'],
+    ['label' => 'NRP', 'field' => 'nrp', 'width' => 0, 'align' => 'C'], // width 0 = otomatis
+];
+$pdf->FancyTable($columns, $data_personil);
 $pdf->Output('laporan_data_personil_' . date('YmdHis') . '.pdf', 'I');

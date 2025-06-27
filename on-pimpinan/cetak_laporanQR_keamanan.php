@@ -73,6 +73,11 @@ class PDF extends FPDF
 
         $this->SetFont('Arial','B',12);
         $this->Cell(0,10,'Laporan Intelijen Situasi Keamanan',0,1,'C');
+
+        $this->Ln(5);
+        $this->SetFont('Arial', '', 10);
+        $this->MultiCell(0, 6, "Laporan Intelijen Situasi Keamanan ini disusun sebagai bentuk pemantauan dan evaluasi terhadap kondisi keamanan di wilayah hukum Polres Barito Kuala. Data yang disajikan merupakan rekapitulasi jumlah kasus yang tercatat pada masing-masing kecamatan, sehingga dapat memberikan gambaran situasi keamanan secara menyeluruh. Dengan adanya laporan ini, diharapkan dapat menjadi acuan dalam pengambilan kebijakan serta langkah-langkah strategis guna menjaga stabilitas dan ketertiban masyarakat di wilayah Barito Kuala.", 0, 'J');
+        $this->Ln(5);
     }
 
     function Footer()

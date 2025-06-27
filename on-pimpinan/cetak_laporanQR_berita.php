@@ -70,6 +70,63 @@ class PDF extends FPDF
         $this->SetFont('Arial','B',12);
         $judul = 'Laporan Berita Pemberitahuan & Peringatan Dini';
         $this->Cell(0,10,$judul,0,1,'C');
+
+        $this->SetFont('Arial', '', 10);
+        $this->Ln(2);
+
+        // Paragraf pembuka formal dan justify (rata kanan kiri)
+        $this->SetFont('Arial', '', 10);
+        $this->SetX(10);
+        $paragraf = "Laporan ini merupakan dokumen resmi yang disusun dan dipublikasikan oleh admin, berisi pemberitahuan penting mengenai pelayanan serta perkembangan situasi keamanan di wilayah Polres Barito Kuala. Seluruh informasi yang tercantum dalam berkas ini telah diverifikasi dan ditujukan sebagai bahan pertimbangan dalam pengambilan keputusan, serta sebagai dokumentasi formal atas dinamika yang terjadi di lingkungan Polres Barito Kuala.";
+        // FPDF tidak punya align justify, tapi bisa diakali dengan membagi kata dan menambah spasi
+        $this->Justify($paragraf, 0, 6, 10, $this->GetPageWidth() - 20);
+        $this->Ln(4);
+    }
+
+    // Tambahkan fungsi Justify ke dalam class PDF
+    function Justify($text, $border=0, $lineHeight=6, $x=10, $width=190)
+    {
+        $this->SetX($x);
+        $words = explode(' ', $text);
+        $lines = [];
+        $currentLine = '';
+        foreach ($words as $word) {
+            $testLine = $currentLine ? $currentLine . ' ' . $word : $word;
+            $w = $this->GetStringWidth($testLine);
+            if ($w > $width && $currentLine) {
+                $lines[] = $currentLine;
+                $currentLine = $word;
+            } else {
+                $currentLine = $testLine;
+            }
+        }
+        if ($currentLine) $lines[] = $currentLine;
+
+        foreach ($lines as $i => $line) {
+            $isLast = ($i == count($lines) - 1);
+            if ($isLast) {
+                $this->Cell($width, $lineHeight, $line, $border, 1, 'L');
+            } else {
+                $wordsInLine = explode(' ', $line);
+                $numWords = count($wordsInLine);
+                if ($numWords == 1) {
+                    $this->Cell($width, $lineHeight, $line, $border, 1, 'L');
+                    continue;
+                }
+                $lineStripped = str_replace(' ', '', $line);
+                $lineWidth = $this->GetStringWidth($lineStripped);
+                $spaceWidth = ($width - $lineWidth) / ($numWords - 1);
+                $xStart = $this->GetX();
+                foreach ($wordsInLine as $j => $word) {
+                    $this->Cell($this->GetStringWidth($word), $lineHeight, $word, 0, 0, 'L');
+                    if ($j < $numWords - 1) {
+                        $this->Cell($spaceWidth, $lineHeight, '', 0, 0, 'L');
+                    }
+                }
+                $this->Ln($lineHeight);
+                $this->SetX($xStart);
+            }
+        }
     }
 
     function Footer()

@@ -10,14 +10,18 @@ if (!isset($_SESSION['nama'])) {
 include '../include/koneksi.php';
 require('../fpdf/fpdf.php');
 
-// Query untuk mengambil data user role petugas
+// Query untuk mengambil data user role petugas, beserta nrp dan catatan_kinerja
 $sql_petugas = "SELECT
                     u.id_user,
                     u.nama,
-                    u.email
-                    FROM users u
-                    WHERE u.role = 'petugas'
-                    ORDER BY u.nama ASC";
+                    u.email,
+                    ps.nrp,
+                    kp.catatan
+                FROM users u
+                LEFT JOIN personil_satintel ps ON u.id_user = ps.user_id
+                LEFT JOIN kinerja_petugas kp ON u.id_user = kp.id_user
+                WHERE u.role = 'petugas'
+                ORDER BY u.nama ASC";
 $result_datpetugas = mysqli_query($conn, $sql_petugas);
 $data_datpetugas = mysqli_fetch_all($result_datpetugas, MYSQLI_ASSOC);
 
@@ -73,6 +77,13 @@ class PDF extends FPDF
         $this->SetFont('Arial', 'B', 12);
         $judul = 'Laporan Petugas Pelayanan Satuan Intelkam';
         $this->Cell(0, 10, $judul, 0, 1, 'C');
+        $this->Ln(2);
+        $this->SetFont('Arial', '', 11);
+        // Set lebar halaman untuk MultiCell
+        $pageWidth = $this->GetPageWidth() - $this->lMargin - $this->rMargin;
+        $paragraf = "Laporan ini merupakan dokumen resmi yang memuat data petugas pelayanan pada Satuan Intelkam Polres Barito Kuala. Laporan ini disusun sebagai bentuk pertanggungjawaban dan dokumentasi atas pelaksanaan tugas serta kinerja para petugas pelayanan. Dengan adanya laporan ini, diharapkan dapat meningkatkan transparansi, akuntabilitas, serta mendukung evaluasi dan pengambilan keputusan dalam upaya optimalisasi pelayanan kepada masyarakat.";
+        $this->MultiCell($pageWidth, 7, $paragraf, 0, 'J');
+        $this->Ln(5);
     }
 
     function Footer()
@@ -155,31 +166,142 @@ class PDF extends FPDF
         }
     }
 
-    function TabelPetugas($header, $data)
+    // Fungsi tabel fleksibel: header & kolom dinamis, lebar otomatis, tinggi baris dinamis (wrap text)
+    function FancyTable($columns, $data)
     {
-        $this->SetFillColor(255, 255, 255);
-        $this->SetTextColor(0);
-        $this->SetDrawColor(0, 0, 0);
-        $this->SetLineWidth(.3);
-        $this->SetFont('', '');
+        // Hitung sisa lebar halaman untuk kolom dengan width 0 (otomatis)
+        $totalWidth = $this->GetPageWidth() - $this->lMargin - $this->rMargin;
+        $fixedWidth = 0;
+        foreach ($columns as $col) {
+            if ($col['width'] > 0) $fixedWidth += $col['width'];
+        }
+        foreach ($columns as &$col) {
+            if ($col['width'] == 0) $col['width'] = $totalWidth - $fixedWidth;
+        }
+        unset($col);
 
-        $w = array(10, 60, 80); // No, Nama, Email
-        $this->SetFont('Arial', 'B', 10);
-        for ($i = 0; $i < count($header); $i++)
-            $this->Cell($w[$i], 7, $header[$i], 1, 0, 'C', false);
+        // Header
+        $this->SetFillColor(230,230,230);
+        $this->SetTextColor(0);
+        $this->SetDrawColor(0,0,0);
+        $this->SetLineWidth(.3);
+        $this->SetFont('Arial','B',10);
+        foreach ($columns as $col) {
+            $this->Cell($col['width'], 7, $col['label'], 1, 0, $col['align'], true);
+        }
         $this->Ln();
 
-        $this->SetFont('Arial', '', 10);
-        $fill = 0;
+        // Data
+        $this->SetFont('Arial','',10);
+        $fill = false;
         $no = 1;
+
         foreach ($data as $row) {
-            $this->Cell($w[0], 6, $no++, '1', 0, 'C', $fill);
-            $this->Cell($w[1], 6, $row['nama'], '1', 0, 'L', $fill);
-            $this->Cell($w[2], 6, $row['email'], '1', 0, 'L', $fill);
-            $this->Ln();
+            // Siapkan data baris
+            $cellData = [];
+            foreach ($columns as $i => $col) {
+                if (isset($col['field'])) {
+                    if ($col['field'] === 'no') {
+                        $cellData[] = $no;
+                    } else {
+                        $cellData[] = isset($row[$col['field']]) ? $row[$col['field']] : '';
+                    }
+                } else {
+                    $cellData[] = isset($row[$i]) ? $row[$i] : '';
+                }
+            }
+            $no++;
+
+            // Hitung tinggi baris tertinggi
+            $maxLines = 1;
+            foreach ($cellData as $i => $txt) {
+                $w = $columns[$i]['width'];
+                $lines = $this->NbLines($w, $txt);
+                if ($lines > $maxLines) $maxLines = $lines;
+            }
+            $rowHeight = 5 * $maxLines;
+
+            // Simpan posisi awal
+            $x = $this->GetX();
+            $y = $this->GetY();
+
+            // Cetak cell satu per satu dengan MultiCell
+            for ($i = 0; $i < count($columns); $i++) {
+                $col = $columns[$i];
+                $w = $col['width'];
+                $align = $col['align'];
+                $txt = $cellData[$i];
+
+                // Simpan posisi sebelum MultiCell
+                $xBefore = $this->GetX();
+                $yBefore = $this->GetY();
+
+                // Draw cell border (tanpa isi)
+                $this->Rect($xBefore, $yBefore, $w, $rowHeight);
+
+                // MultiCell untuk isi
+                $this->MultiCell($w, 5, $txt, 0, $align);
+
+                // Kembali ke posisi awal untuk cell berikutnya
+                $this->SetXY($xBefore + $w, $yBefore);
+            }
+            // Pindah ke baris berikutnya
+            $this->SetXY($x, $y + $rowHeight);
             $fill = !$fill;
         }
-        $this->Cell(array_sum($w), 0, '', 'T');
+        // Garis bawah tabel
+        $this->Cell($totalWidth, 0, '', 'T');
+    }
+
+    // Tambahkan fungsi bantu untuk hitung jumlah baris pada MultiCell
+    function NbLines($w, $txt)
+    {
+        $cw = &$this->CurrentFont['cw'];
+        if($w==0)
+            $w = $this->w-$this->rMargin-$this->x;
+        $wmax = ($w-2*$this->cMargin)*1000/$this->FontSize;
+        $s = str_replace("\r",'',$txt);
+        $nb = strlen($s);
+        if($nb>0 and $s[$nb-1]=="\n")
+            $nb--;
+        $sep = -1;
+        $i = 0;
+        $j = 0;
+        $l = 0;
+        $nl = 1;
+        while($i<$nb)
+        {
+            $c = $s[$i];
+            if($c=="\n")
+            {
+                $i++;
+                $sep = -1;
+                $j = $i;
+                $l = 0;
+                $nl++;
+                continue;
+            }
+            if($c==' ')
+                $sep = $i;
+            $l += $cw[$c];
+            if($l > $wmax)
+            {
+                if($sep==-1)
+                {
+                    if($i==$j)
+                        $i++;
+                }
+                else
+                    $i = $sep+1;
+                $sep = -1;
+                $j = $i;
+                $l = 0;
+                $nl++;
+            }
+            else
+                $i++;
+        }
+        return $nl;
     }
 }
 
@@ -188,6 +310,13 @@ $pdf = new PDF($conn, $qr_api_url);
 $pdf->SetMargins(10, 20, 10);
 $pdf->SetAutoPageBreak(true, 40);
 $pdf->AddPage();
-$header = array('No', 'Nama Petugas', 'Email');
-$pdf->TabelPetugas($header, $data_datpetugas);
+$header = array('No', 'Nama Petugas', 'Email', 'NRP', 'Catatan Kinerja');
+$columns = [
+    ['label' => 'No', 'width' => 10, 'align' => 'C', 'field' => 'no'],
+    ['label' => 'Nama Petugas', 'width' => 50, 'align' => 'L', 'field' => 'nama'],
+    ['label' => 'Email', 'width' => 45, 'align' => 'L', 'field' => 'email'],
+    ['label' => 'NRP', 'width' => 30, 'align' => 'C', 'field' => 'nrp'],
+    ['label' => 'Catatan Kinerja', 'width' => 0, 'align' => 'L', 'field' => 'catatan'],
+];
+$pdf->FancyTable($columns, $data_datpetugas);
 $pdf->Output('laporan_data_petugas_' . date('YmdHis') . '.pdf', 'I');

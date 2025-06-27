@@ -143,7 +143,18 @@ if (isset($_POST['id_sttp_upload'])) {
                                                 <td class="text-center"><?php echo $no++; ?></td>
                                                 <td><?php echo htmlspecialchars($row_sttp['username']); ?></td>
                                                 <td><?php echo htmlspecialchars($row_sttp['nama_paslon']); ?></td>
-                                                <td class="text-center"><?php echo htmlspecialchars($row_sttp['kampanye_id']); ?></td>
+                                                <?php
+                                                // Ambil nama kampanye dari tabel kampanye berdasarkan kampanye_id
+                                                $nama_kampanye = '-';
+                                                if (!empty($row_sttp['kampanye_id'])) {
+                                                    $kampanye_id = intval($row_sttp['kampanye_id']);
+                                                    $query_kampanye = mysqli_query($conn, "SELECT nama_kampanye FROM kampanye WHERE id_kampanye = $kampanye_id LIMIT 1");
+                                                    if ($row_kampanye = mysqli_fetch_assoc($query_kampanye)) {
+                                                        $nama_kampanye = $row_kampanye['nama_kampanye'];
+                                                    }
+                                                }
+                                                ?>
+                                                <td class="text-center"><?php echo htmlspecialchars($nama_kampanye); ?></td>
                                                 <td class="text-center">
                                                     <a href="detail_sttp.php?id=<?php echo $row_sttp['id_sttp']; ?>" class="btn btn-sm btn-primary">
                                                         <i>Cek detail</i>

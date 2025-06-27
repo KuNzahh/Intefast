@@ -1,6 +1,6 @@
 <?php
 session_start();
-include '../include/koneksi.php';
+
 // Pastikan session nama sudah di-set
 if (!isset($_SESSION['nama'])) {
     // Jika belum di-set, mungkin perlu redirect ke halaman login
@@ -8,22 +8,22 @@ if (!isset($_SESSION['nama'])) {
     exit();
 }
 
-
+include '../include/koneksi.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $id       = isset($_POST['id_kampanye']) ? mysqli_real_escape_string($conn, $_POST['id_kampanye']) : '';
-    $nama     = mysqli_real_escape_string($conn, $_POST['nama']);
+    $nama     = mysqli_real_escape_string($conn, $_POST['nama_kampanye']);
     $deskripsi    = mysqli_real_escape_string($conn, $_POST['deskripsi']);
 
     if ($id) {
         // Update data
-        $query = "UPDATE kampanye SET nama='$nama', deskripsi='$deskripsi' ";
+        $query = "UPDATE kampanye SET nama_kampanye='$nama', deskripsi='$deskripsi' ";
         $query .= " WHERE id_kampanye='$id'";
         $result = mysqli_query($conn, $query);
         $_SESSION[$result ? 'success' : 'error'] = $result ? 'Kampanye berhasil diperbarui!' : 'Gagal memperbarui Kampanye.';
     } else {
         // Tambah data baru
-        $query = "INSERT INTO kampanye (nama, deskripsi) VALUES ('$nama', '$deskripsi')";
+        $query = "INSERT INTO kampanye (nama_kampanye, deskripsi) VALUES ('$nama', '$deskripsi')";
         $result = mysqli_query($conn, $query);
         $_SESSION[$result ? 'success' : 'error'] = $result ? 'Kampanye berhasil ditambahkan!' : 'Gagal menambahkan Kampanye.';
     }
@@ -48,26 +48,57 @@ if (isset($_GET['hapus'])) {
         const nama = row.querySelector('.data-nama').textContent;
         const deskripsi = row.querySelector('.data-deskripsi').textContent;
 
-        document.getElementById('id_kampanye').value = id; // Set Deskripsi di hidden field
-        document.getElementById('nama').value = nama;
+        document.getElementById('id_kampanye').value = id;
+        document.getElementById('nama_kampanye').value = nama;
         document.getElementById('deskripsi').value = deskripsi;
     }
 
-
     function hapusKampanye(id) {
-        if (confirm('Yakin ingin menghapus data Kampanye ini?')) {
-            window.location = `?hapus=${id}`;
+        // Buat modal konfirmasi jika belum ada
+        let modal = document.getElementById('modalHapusKampanye');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal fade" id="modalHapusKampanye" tabindex="-1" aria-labelledby="modalHapusKampanyeLabel" aria-hidden="true">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <div class="modal-header bg-danger">
+                        <h5 class="modal-title text-white" id="modalHapusKampanyeLabel">Konfirmasi Hapus</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        Apakah Anda yakin ingin menghapus data Kampanye ini?
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="button" class="btn btn-danger" id="btnKonfirmasiHapusKampanye">Hapus</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
         }
+
+        // Tampilkan modal
+        var bsModal = new bootstrap.Modal(document.getElementById('modalHapusKampanye'));
+        bsModal.show();
+
+        // Set event tombol hapus
+        document.getElementById('btnKonfirmasiHapusKampanye').onclick = function() {
+            window.location = `?hapus=${id}`;
+        };
     }
 
-    // Filter table by role
-    function filterTable() {
+    // Filter table by bulan (if needed)
+    function filterBulan() {
         const filter = document.getElementById("filterBulan").value.toLowerCase();
-        const rows = document.querySelectorAll("#tabelKampanye tbody tr");
+        const rows = document.querySelectorAll("#tabelPengguna tbody tr");
 
         rows.forEach(row => {
-            const bulan = row.cells[4].textContent.toLowerCase(); // Correct column index for role
-            row.style.display = (filter === "" || bulan === filter) ? "" : "none";
+            // Ganti sesuai kolom bulan jika ada, jika tidak, sembunyikan filter
+            // row.cells[?] -> sesuaikan index jika ada kolom bulan
+            row.style.display = ""; // Tidak ada kolom bulan, tampilkan semua
         });
     }
 </script>
@@ -156,15 +187,15 @@ if (isset($_GET['hapus'])) {
                                 <form action="" method="POST">
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
-                                            <label for="nama" class="form-label">Jenis Kampanye</label>
-                                            <input type="text" class="form-control" id="nama" name="nama" placeholder="Masukkan Kampanye">
+                                            <label for="nama_kampanye" class="form-label">Jenis Kampanye</label>
+                                            <input type="text" class="form-control" id="nama_kampanye" name="nama_kampanye" placeholder="Masukkan Kampanye">
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label for="deskripsi" class="form-label">Deskripsi</label>
                                             <input type="text" class="form-control" id="deskripsi" name="deskripsi" placeholder="Masukkan Deskripsi">
                                         </div>
                                     </div>
-                                    <input type="hidden" id="id_kampanye" name="id_kampanye" value=""> <!-- Hidden input untuk id_user -->
+                                    <input type="hidden" id="id_kampanye" name="id_kampanye" value=""> <!-- Hidden input untuk id_kampanye -->
                                     <button type="submit" class="btn btn-success w-100 mt-3">
                                         <i class="fas fa-save me-1"></i> Simpan
                                     </button>
@@ -181,37 +212,82 @@ if (isset($_GET['hapus'])) {
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-light d-flex flex-wrap justify-content-between align-items-center">
                                 <h5 class="mb-0"><i class="fas fa-edit me-2"></i>Daftar Kampanye</h5>
-                                <div class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
-                                    <div style="min-width: 200px;">
-                                        <input type="text" id="cariInputKampanye" class="form-control form-control-sm" placeholder="Cari Kampanye..." onkeyup="cariDataKampanye()">
-                                    </div>
+                                <div class="mt-2 mt-md-0" style="min-width: 180px;">
+                                    <select class="form-select" id="filterBulan" onchange="filterBulan()">
+                                        <option value="">Semua Bulan</option>
+                                        <option value="Januari">Januari</option>
+                                        <option value="Februari">Februari</option>
+                                        <option value="Maret">Maret</option>
+                                        <option value="April">April</option>
+                                        <option value="Mei">Mei</option>
+                                        <option value="Juni">Juni</option>
+                                        <option value="Juli">Juli</option>
+                                        <option value="Agustus">Agustus</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="card-body table-responsive">
-                                <table class="table table-bordered table-striped align-middle" id="tabelKampanye">
-                                    <thead class="table-primary text-center">
+                                <table class="table table-bordered table-striped align-middle" id="tabelPengguna">
+                                    <!-- Modal Notifikasi -->
+                                    <?php if (isset($_SESSION['error']) || isset($_SESSION['success'])): ?>
+                                        <div class="modal fade" id="notifModal" tabindex="-1" aria-labelledby="notifModalLabel" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header <?= isset($_SESSION['error']) ? 'bg-danger' : 'bg-success'; ?>">
+                                                        <h5 class="modal-title text-white" id="notifModalLabel">
+                                                            <?= isset($_SESSION['error']) ? 'Gagal!' : 'Berhasil!'; ?>
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <?= isset($_SESSION['error']) ? $_SESSION['error'] : $_SESSION['success']; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <script>
+                                            // Tampilkan modal setelah halaman dimuat
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                var notifModal = new bootstrap.Modal(document.getElementById('notifModal'));
+                                                notifModal.show();
+                                            });
+                                        </script>
+                                        <?php unset($_SESSION['error'], $_SESSION['success']); ?>
+                                    <?php endif; ?>
+                                <thead class="table-primary text-center align-middle">
                                         <tr>
-                                            <th>No</th>
-                                            <th>Jenis Kampanye</th>
+                                            <th style="width: 50px;">No</th>
+                                            <th>Nama Kampanye</th>
                                             <th>Deskripsi</th>
-                                            <th>Aksi</th>
+                                            <th style="width: 120px;">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php
-                                        $query = mysqli_query($conn, "SELECT * FROM kampanye");
-                                        $no = 1;
+                                        // Pagination setup
+                                        $perPage = 10;
+                                        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+                                        if ($page < 1) $page = 1;
+                                        $start = ($page - 1) * $perPage;
+
+                                        $totalQuery = mysqli_query($conn, "SELECT COUNT(*) as total FROM kampanye");
+                                        $totalData = mysqli_fetch_assoc($totalQuery);
+                                        $totalRows = $totalData['total'];
+                                        $totalPages = ceil($totalRows / $perPage);
+
+                                        $query = mysqli_query($conn, "SELECT * FROM kampanye ORDER BY id_kampanye DESC LIMIT $start, $perPage");
+                                        $no = $start + 1;
                                         while ($data = mysqli_fetch_assoc($query)) {
                                         ?>
                                             <tr id="row-<?= $data['id_kampanye']; ?>">
                                                 <td class="text-center"><?= $no++; ?></td>
-                                                <td class="data-nama"><?= htmlspecialchars($data['nama']); ?></td>
+                                                <td class="data-nama"><?= htmlspecialchars($data['nama_kampanye']); ?></td>
                                                 <td class="data-deskripsi"><?= htmlspecialchars($data['deskripsi']); ?></td>
                                                 <td class="text-center">
-                                                    <button class="btn btn-sm btn-warning" onclick="editKampanye(<?= $data['id_kampanye']; ?>)">
+                                                    <button class="btn btn-sm btn-warning" onclick="editKampanye(<?= $data['id_kampanye']; ?>)" title="Edit">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
-                                                    <button class="btn btn-sm btn-danger" onclick="hapusKampanye(<?= $data['id_kampanye']; ?>)">
+                                                    <button class="btn btn-sm btn-danger" onclick="hapusKampanye(<?= $data['id_kampanye']; ?>)" title="Hapus">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </td>
@@ -219,44 +295,48 @@ if (isset($_GET['hapus'])) {
                                         <?php } ?>
                                     </tbody>
                                 </table>
+                                <!-- Pagination Preview -->
+                                <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap">
+                                    <div>
+                                        <small>
+                                            Menampilkan 
+                                            <b><?= min($start + 1, $totalRows); ?></b>
+                                            -
+                                            <b><?= min($start + $perPage, $totalRows); ?></b>
+                                            dari <b><?= $totalRows; ?></b> kampanye
+                                        </small>
+                                    </div>
+                                    <nav>
+                                        <ul class="pagination pagination-sm mb-0">
+                                            <li class="page-item<?= ($page <= 1) ? ' disabled' : ''; ?>">
+                                                <a class="page-link" href="?page=<?= $page - 1; ?>" tabindex="-1">&laquo;</a>
+                                            </li>
+                                            <?php
+                                            for ($i = 1; $i <= $totalPages; $i++) {
+                                                if ($i == $page || ($i <= 2 || $i > $totalPages - 2 || abs($i - $page) <= 1)) {
+                                                    // Show first 2, last 2, and 1 around current
+                                            ?>
+                                                <li class="page-item<?= ($i == $page) ? ' active' : ''; ?>">
+                                                    <a class="page-link" href="?page=<?= $i; ?>"><?= $i; ?></a>
+                                                </li>
+                                            <?php
+                                                } elseif ($i == 3 && $page > 4) {
+                                                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                                } elseif ($i == $totalPages - 2 && $page < $totalPages - 3) {
+                                                    echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                                }
+                                            }
+                                            ?>
+                                            <li class="page-item<?= ($page >= $totalPages) ? ' disabled' : ''; ?>">
+                                                <a class="page-link" href="?page=<?= $page + 1; ?>">&raquo;</a>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <script>
-                    function editKampanye(id) {
-                        const row = document.querySelector(`#row-${id}`);
-                        const nama = row.querySelector('.data-nama').textContent;
-                        const deskripsi = row.querySelector('.data-deskripsi').textContent;
-
-                        document.getElementById('id_kampanye').value = id; // Set Deskripsi di hidden field
-                        document.getElementById('nama').value = nama;
-                        document.getElementById('deskripsi').value = deskripsi;
-                    }
-
-                    function hapusKampanye(id) {
-                        if (confirm('Yakin ingin menghapus data Kampanye ini?')) {
-                            window.location = `?hapus=${id}`;
-                        }
-                    }
-
-                    function cariDataKampanye() {
-                        const input = document.getElementById("cariInputKampanye");
-                        const filter = input.value.toLowerCase();
-                        const table = document.getElementById("tabelKampanye");
-                        const rows = table.getElementsByTagName("tbody")[0].getElementsByTagName("tr");
-
-                        for (let i = 0; i < rows.length; i++) {
-                            const nama = rows[i].getElementsByTagName("td")[1].textContent.toLowerCase();
-                            const deskripsi = rows[i].getElementsByTagName("td")[2].textContent.toLowerCase();
-                            if (nama.includes(filter) || deskripsi.includes(filter)) {
-                                rows[i].style.display = "";
-                            } else {
-                                rows[i].style.display = "none";
-                            }
-                        }
-                    }
-                </script>
                 <!-- End::Tabel Data Pengguna -->
             </div>
         </div>

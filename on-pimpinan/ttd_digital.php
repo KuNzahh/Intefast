@@ -46,8 +46,18 @@ $sql_all_ttd = "SELECT nama_pemohon, tanggal_pengajuan, jenis, detail, id
                     SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, 'SIK' AS jenis, CONCAT('Instansi: ', s.nama_instansi, '<br>Penanggung Jawab: ', s.penanggung_jawab) AS detail, s.id_sik AS id
                     FROM sik s JOIN users u ON s.user_id = u.id_user
                     UNION ALL
-                    SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, 'STTP' AS jenis, CONCAT('Paslon: ', s.nama_paslon, '<br>Kampanye: ', s.nama_kampanye) AS detail, s.id_sttp AS id
-                    FROM sttp s JOIN users u ON s.user_id = u.id_user
+                    SELECT 
+                        u.nama AS nama_pemohon, 
+                        s.tanggal_pengajuan, 
+                        'STTP' AS jenis, 
+                        CONCAT(
+                            'Paslon: ', s.nama_paslon, 
+                            '<br>Kampanye: ', IFNULL(k.nama_kampanye, s.kampanye_id)
+                        ) AS detail, 
+                        s.id_sttp AS id
+                    FROM sttp s 
+                    JOIN users u ON s.user_id = u.id_user
+                    LEFT JOIN kampanye k ON s.kampanye_id = k.id_kampanye
                 ) AS semua $where_clause ORDER BY tanggal_pengajuan DESC";
 
 $result_all_ttd = mysqli_query($conn, $sql_all_ttd);
@@ -425,8 +435,9 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                         <tr>
                                             <th>No</th>
                                             <th>Jenis Permohonan</th>
+                                            <th>Nama Pemohon</th>
                                             <th>Tanggal Pengajuan</th>
-                                            <th>Detail</th>
+                                            <th>Umum</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -436,6 +447,7 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                                 <tr>
                                                     <td class="text-center"><?php echo $no++; ?></td>
                                                     <td class="text-center"><?php echo htmlspecialchars($row['jenis']); ?></td>
+                                                    <td><?php echo htmlspecialchars($row['nama_pemohon']); ?></td>
                                                     <td class="text-center"><?php echo date('d-m-Y', strtotime($row['tanggal_pengajuan'])); ?></td>
                                                     <td><?php echo $row['detail']; ?></td>
                                                 </tr>
@@ -470,14 +482,26 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
 
                 </div>
 
-
-
+                <!-- FILTER STATUS PENGAJUAN -->
                 <div class="collapse mt-4" id="laporanDataStatusPengajuan">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-light">
                             <h5 class="mb-0"><i class="fas fa-file-alt me-2" style="color: #28a745;"></i>Data Status Pengajuan</h5>
                         </div>
                         <div class="card-body">
+                            <form method="GET" class="mb-3">
+                                <div class="row align-items-end">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="filter_jenis_progres" class="form-label">Jenis Permohonan:</label>
+                                        <select class="form-select" id="filter_jenis_progres" name="filter_jenis_progres" onchange="this.form.submit()">
+                                            <option value="semua" <?php if (!isset($_GET['filter_jenis_progres']) || $_GET['filter_jenis_progres'] == 'semua') echo 'selected'; ?>>Semua</option>
+                                            <option value="SKCK" <?php if (isset($_GET['filter_jenis_progres']) && $_GET['filter_jenis_progres'] == 'SKCK') echo 'selected'; ?>>SKCK</option>
+                                            <option value="SIK" <?php if (isset($_GET['filter_jenis_progres']) && $_GET['filter_jenis_progres'] == 'SIK') echo 'selected'; ?>>SIK</option>
+                                            <option value="STTP" <?php if (isset($_GET['filter_jenis_progres']) && $_GET['filter_jenis_progres'] == 'STTP') echo 'selected'; ?>>STTP</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabelProgresPengajuan">
                                     <thead class="table-primary text-center">
@@ -490,9 +514,22 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($data_progres)): ?>
+                                        <?php
+                                        $filter_jenis_progres = isset($_GET['filter_jenis_progres']) ? $_GET['filter_jenis_progres'] : 'semua';
+                                        $filtered_progres = [];
+                                        if ($filter_jenis_progres == 'semua') {
+                                            $filtered_progres = $data_progres;
+                                        } else {
+                                            foreach ($data_progres as $row) {
+                                                if ($row['jenis'] == $filter_jenis_progres) {
+                                                    $filtered_progres[] = $row;
+                                                }
+                                            }
+                                        }
+                                        ?>
+                                        <?php if (!empty($filtered_progres)): ?>
                                             <?php $no = 1; ?>
-                                            <?php foreach ($data_progres as $row): ?>
+                                            <?php foreach ($filtered_progres as $row): ?>
                                                 <tr>
                                                     <td class="text-center"><?php echo $no++; ?></td>
                                                     <td><?php echo htmlspecialchars($row['nama_pemohon']); ?></td>
@@ -526,12 +563,33 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                     </div>
                 </div>
 
+                <!-- FILTER KINERJA PETUGAS -->
                 <div class="collapse mt-4" id="laporanKinerjaPetugas">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-light">
                             <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Laporan Kinerja Petugas</h5>
                         </div>
                         <div class="card-body">
+                            <form method="GET" class="mb-3">
+                                <div class="row align-items-end">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="filter_nama_petugas" class="form-label">Nama Petugas:</label>
+                                        <select class="form-select" id="filter_nama_petugas" name="filter_nama_petugas" onchange="this.form.submit()">
+                                            <option value="semua" <?php if (!isset($_GET['filter_nama_petugas']) || $_GET['filter_nama_petugas'] == 'semua') echo 'selected'; ?>>Semua</option>
+                                            <?php
+                                            $nama_petugas_list = [];
+                                            foreach ($data_kinerja as $row) {
+                                                $nama_petugas_list[$row['nama_petugas']] = true;
+                                            }
+                                            foreach (array_keys($nama_petugas_list) as $nama_petugas) {
+                                                $selected = (isset($_GET['filter_nama_petugas']) && $_GET['filter_nama_petugas'] == $nama_petugas) ? 'selected' : '';
+                                                echo '<option value="' . htmlspecialchars($nama_petugas) . '" ' . $selected . '>' . htmlspecialchars($nama_petugas) . '</option>';
+                                            }
+                                            ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabelKinerjaPetugas">
                                     <thead class="table-primary text-center">
@@ -549,9 +607,22 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($data_kinerja)): ?>
+                                        <?php
+                                        $filter_nama_petugas = isset($_GET['filter_nama_petugas']) ? $_GET['filter_nama_petugas'] : 'semua';
+                                        $filtered_kinerja = [];
+                                        if ($filter_nama_petugas == 'semua') {
+                                            $filtered_kinerja = $data_kinerja;
+                                        } else {
+                                            foreach ($data_kinerja as $row) {
+                                                if ($row['nama_petugas'] == $filter_nama_petugas) {
+                                                    $filtered_kinerja[] = $row;
+                                                }
+                                            }
+                                        }
+                                        ?>
+                                        <?php if (!empty($filtered_kinerja)): ?>
                                             <?php $no = 1; ?>
-                                            <?php foreach ($data_kinerja as $row): ?>
+                                            <?php foreach ($filtered_kinerja as $row): ?>
                                                 <tr>
                                                     <td class="text-center"><?php echo $no++; ?></td>
                                                     <td><?php echo htmlspecialchars($row['nama_petugas']); ?></td>
@@ -580,7 +651,7 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                                         } elseif ($nilai_sb == 2) {
                                                             echo 'Petugas Terbaik (2 Kriteria)';
                                                         } else {
-                                                            echo 'Baik'; // Atau nilai lain sesuai keinginan Anda
+                                                            echo 'Baik';
                                                         }
                                                         ?>
                                                     </td>
@@ -588,7 +659,7 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                             <?php endforeach; ?>
                                         <?php else: ?>
                                             <tr>
-                                                <td colspan="9" class="text-center">Tidak ada data kinerja petugas.</td>
+                                                <td colspan="10" class="text-center">Tidak ada data kinerja petugas.</td>
                                             </tr>
                                         <?php endif; ?>
                                     </tbody>
@@ -611,12 +682,25 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                     </div>
                 </div>
 
+                <!-- FILTER KEGIATAN MASYARAKAT -->
                 <div class="collapse mt-4" id="laporanDataKegiatanMasyarakat">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-light">
                             <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Laporan Data Kegiatan Masyarakat</h5>
                         </div>
                         <div class="card-body">
+                            <form method="GET" class="mb-3">
+                                <div class="row align-items-end">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="filter_jenis_kegiatan" class="form-label">Jenis Kegiatan:</label>
+                                        <select class="form-select" id="filter_jenis_kegiatan" name="filter_jenis_kegiatan" onchange="this.form.submit()">
+                                            <option value="semua" <?php if (!isset($_GET['filter_jenis_kegiatan']) || $_GET['filter_jenis_kegiatan'] == 'semua') echo 'selected'; ?>>Semua</option>
+                                            <option value="SIK" <?php if (isset($_GET['filter_jenis_kegiatan']) && $_GET['filter_jenis_kegiatan'] == 'SIK') echo 'selected'; ?>>SIK</option>
+                                            <option value="STTP" <?php if (isset($_GET['filter_jenis_kegiatan']) && $_GET['filter_jenis_kegiatan'] == 'STTP') echo 'selected'; ?>>STTP</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabelLaporanKegiatanMasyarakat">
                                     <thead class="table-primary text-center">
@@ -630,9 +714,22 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($data_kegiatan)): ?>
+                                        <?php
+                                        $filter_jenis_kegiatan = isset($_GET['filter_jenis_kegiatan']) ? $_GET['filter_jenis_kegiatan'] : 'semua';
+                                        $filtered_kegiatan = [];
+                                        if ($filter_jenis_kegiatan == 'semua') {
+                                            $filtered_kegiatan = $data_kegiatan;
+                                        } else {
+                                            foreach ($data_kegiatan as $row) {
+                                                if ($row['jenis'] == $filter_jenis_kegiatan) {
+                                                    $filtered_kegiatan[] = $row;
+                                                }
+                                            }
+                                        }
+                                        ?>
+                                        <?php if (!empty($filtered_kegiatan)): ?>
                                             <?php $no = 1; ?>
-                                            <?php foreach ($data_kegiatan as $row): ?>
+                                            <?php foreach ($filtered_kegiatan as $row): ?>
                                                 <tr>
                                                     <td class="text-center"><?php echo $no++; ?></td>
                                                     <td><?php echo htmlspecialchars($row['nama_pemohon']); ?></td>
@@ -644,7 +741,7 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                             <?php endforeach; ?>
                                         <?php else: ?>
                                             <tr>
-                                                <td colspan="9" class="text-center">Tidak ada data Kegiatan Masyarakat.</td>
+                                                <td colspan="6" class="text-center">Tidak ada data Kegiatan Masyarakat.</td>
                                             </tr>
                                         <?php endif; ?>
                                     </tbody>
@@ -667,12 +764,33 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                     </div>
                 </div>
 
+                <!-- FILTER INTELIJEN KEAMANAN -->
                 <div class="collapse mt-4" id="laporanIntelijenSituasiKeamanan">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-light">
                             <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Laporan Intelijen Situasi Keamanan</h5>
                         </div>
                         <div class="card-body">
+                            <form method="GET" class="mb-3">
+                                <div class="row align-items-end">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="filter_kecamatan" class="form-label">Nama Kecamatan:</label>
+                                        <select class="form-select" id="filter_kecamatan" name="filter_kecamatan" onchange="this.form.submit()">
+                                            <option value="semua" <?php if (!isset($_GET['filter_kecamatan']) || $_GET['filter_kecamatan'] == 'semua') echo 'selected'; ?>>Semua</option>
+                                            <?php
+                                            $kecamatan_list = [];
+                                            foreach ($data_intel as $row) {
+                                                $kecamatan_list[$row['nama_kecamatan']] = true;
+                                            }
+                                            foreach (array_keys($kecamatan_list) as $nama_kecamatan) {
+                                                $selected = (isset($_GET['filter_kecamatan']) && $_GET['filter_kecamatan'] == $nama_kecamatan) ? 'selected' : '';
+                                                echo '<option value="' . htmlspecialchars($nama_kecamatan) . '" ' . $selected . '>' . htmlspecialchars($nama_kecamatan) . '</option>';
+                                            }
+                                            ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabelLaporanIntelijenKeamanan">
                                     <thead class="table-primary text-center">
@@ -684,9 +802,22 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($data_intel)): ?>
+                                        <?php
+                                        $filter_kecamatan = isset($_GET['filter_kecamatan']) ? $_GET['filter_kecamatan'] : 'semua';
+                                        $filtered_intel = [];
+                                        if ($filter_kecamatan == 'semua') {
+                                            $filtered_intel = $data_intel;
+                                        } else {
+                                            foreach ($data_intel as $row) {
+                                                if ($row['nama_kecamatan'] == $filter_kecamatan) {
+                                                    $filtered_intel[] = $row;
+                                                }
+                                            }
+                                        }
+                                        ?>
+                                        <?php if (!empty($filtered_intel)): ?>
                                             <?php $no = 1; ?>
-                                            <?php foreach ($data_intel as $row): ?>
+                                            <?php foreach ($filtered_intel as $row): ?>
                                                 <tr>
                                                     <td class="text-center"><?php echo $no++; ?></td>
                                                     <td class="text-center"><?php echo htmlspecialchars($row['nama_kecamatan']); ?></td>
@@ -719,12 +850,33 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                     </div>
                 </div>
 
+                <!-- FILTER BERITA/NOTIFIKASI -->
                 <div class="collapse mt-4" id="laporanNotifiksasidanPeringatan">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-light">
                             <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Laporan Berita Pemberitahuan dan Peringatan Dini</h5>
                         </div>
                         <div class="card-body">
+                            <form method="GET" class="mb-3">
+                                <div class="row align-items-end">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="filter_judul_berita" class="form-label">Judul Berita:</label>
+                                        <select class="form-select" id="filter_judul_berita" name="filter_judul_berita" onchange="this.form.submit()">
+                                            <option value="semua" <?php if (!isset($_GET['filter_judul_berita']) || $_GET['filter_judul_berita'] == 'semua') echo 'selected'; ?>>Semua</option>
+                                            <?php
+                                            $judul_berita_list = [];
+                                            foreach ($data_notif as $row) {
+                                                $judul_berita_list[$row['judul']] = true;
+                                            }
+                                            foreach (array_keys($judul_berita_list) as $judul) {
+                                                $selected = (isset($_GET['filter_judul_berita']) && $_GET['filter_judul_berita'] == $judul) ? 'selected' : '';
+                                                echo '<option value="' . htmlspecialchars($judul) . '" ' . $selected . '>' . htmlspecialchars($judul) . '</option>';
+                                            }
+                                            ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabellaporanNotifiksasidanPeringatan">
                                     <thead class="table-primary text-center">
@@ -736,9 +888,22 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($data_notif)): ?>
+                                        <?php
+                                        $filter_judul_berita = isset($_GET['filter_judul_berita']) ? $_GET['filter_judul_berita'] : 'semua';
+                                        $filtered_notif = [];
+                                        if ($filter_judul_berita == 'semua') {
+                                            $filtered_notif = $data_notif;
+                                        } else {
+                                            foreach ($data_notif as $row) {
+                                                if ($row['judul'] == $filter_judul_berita) {
+                                                    $filtered_notif[] = $row;
+                                                }
+                                            }
+                                        }
+                                        ?>
+                                        <?php if (!empty($filtered_notif)): ?>
                                             <?php $no = 1; ?>
-                                            <?php foreach ($data_notif as $row): ?>
+                                            <?php foreach ($filtered_notif as $row): ?>
                                                 <tr>
                                                     <td class="text-center"><?php echo $no++; ?></td>
                                                     <td><?php echo htmlspecialchars($row['judul']); ?></td>
@@ -771,12 +936,33 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                     </div>
                 </div>
 
+                <!-- FILTER DATA PERSONIL SATINTELKAM -->
                 <div class="collapse mt-4" id="laporanPersonilSatintelkam">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-light">
                             <h5 class="mb-0"><i class="fas fa-user-shield me-2"></i>Laporan Personil Satintelkam</h5>
                         </div>
                         <div class="card-body">
+                            <form method="GET" class="mb-3">
+                                <div class="row align-items-end">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="filter_nama_personil" class="form-label">Nama Personil:</label>
+                                        <select class="form-select" id="filter_nama_personil" name="filter_nama_personil" onchange="this.form.submit()">
+                                            <option value="semua" <?php if (!isset($_GET['filter_nama_personil']) || $_GET['filter_nama_personil'] == 'semua') echo 'selected'; ?>>Semua</option>
+                                            <?php
+                                            $nama_personil_list = [];
+                                            foreach ($data_personil as $row) {
+                                                $nama_personil_list[$row['nama']] = true;
+                                            }
+                                            foreach (array_keys($nama_personil_list) as $nama_personil) {
+                                                $selected = (isset($_GET['filter_nama_personil']) && $_GET['filter_nama_personil'] == $nama_personil) ? 'selected' : '';
+                                                echo '<option value="' . htmlspecialchars($nama_personil) . '" ' . $selected . '>' . htmlspecialchars($nama_personil) . '</option>';
+                                            }
+                                            ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabelLaporanPersonil">
                                     <thead class="table-primary text-center">
@@ -788,9 +974,22 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($data_personil)): ?>
+                                        <?php
+                                        $filter_nama_personil = isset($_GET['filter_nama_personil']) ? $_GET['filter_nama_personil'] : 'semua';
+                                        $filtered_personil = [];
+                                        if ($filter_nama_personil == 'semua') {
+                                            $filtered_personil = $data_personil;
+                                        } else {
+                                            foreach ($data_personil as $row) {
+                                                if ($row['nama'] == $filter_nama_personil) {
+                                                    $filtered_personil[] = $row;
+                                                }
+                                            }
+                                        }
+                                        ?>
+                                        <?php if (!empty($filtered_personil)): ?>
                                             <?php $no = 1; ?>
-                                            <?php foreach ($data_personil as $row): ?>
+                                            <?php foreach ($filtered_personil as $row): ?>
                                                 <tr>
                                                     <td class="text-center"><?php echo $no++; ?></td>
                                                     <td><?php echo htmlspecialchars($row['nama']); ?></td>
@@ -823,13 +1022,33 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                     </div>
                 </div>
 
-
+                <!-- FILTER DATA PETUGAS -->
                 <div class="collapse mt-4" id="laporanDataPetugas">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-light">
                             <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Laporan laporan Data Petugas</h5>
                         </div>
                         <div class="card-body">
+                            <form method="GET" class="mb-3">
+                                <div class="row align-items-end">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="filter_nama_petugas_data" class="form-label">Nama Petugas:</label>
+                                        <select class="form-select" id="filter_nama_petugas_data" name="filter_nama_petugas_data" onchange="this.form.submit()">
+                                            <option value="semua" <?php if (!isset($_GET['filter_nama_petugas_data']) || $_GET['filter_nama_petugas_data'] == 'semua') echo 'selected'; ?>>Semua</option>
+                                            <?php
+                                            $nama_petugas_data_list = [];
+                                            foreach ($data_datpetugas as $row) {
+                                                $nama_petugas_data_list[$row['nama']] = true;
+                                            }
+                                            foreach (array_keys($nama_petugas_data_list) as $nama_petugas) {
+                                                $selected = (isset($_GET['filter_nama_petugas_data']) && $_GET['filter_nama_petugas_data'] == $nama_petugas) ? 'selected' : '';
+                                                echo '<option value="' . htmlspecialchars($nama_petugas) . '" ' . $selected . '>' . htmlspecialchars($nama_petugas) . '</option>';
+                                            }
+                                            ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabellaporanDataPetugas">
                                     <thead class="table-primary text-center">
@@ -840,9 +1059,22 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($data_datpetugas)): ?>
+                                        <?php
+                                        $filter_nama_petugas_data = isset($_GET['filter_nama_petugas_data']) ? $_GET['filter_nama_petugas_data'] : 'semua';
+                                        $filtered_datpetugas = [];
+                                        if ($filter_nama_petugas_data == 'semua') {
+                                            $filtered_datpetugas = $data_datpetugas;
+                                        } else {
+                                            foreach ($data_datpetugas as $row) {
+                                                if ($row['nama'] == $filter_nama_petugas_data) {
+                                                    $filtered_datpetugas[] = $row;
+                                                }
+                                            }
+                                        }
+                                        ?>
+                                        <?php if (!empty($filtered_datpetugas)): ?>
                                             <?php $no = 1; ?>
-                                            <?php foreach ($data_datpetugas as $row): ?>
+                                            <?php foreach ($filtered_datpetugas as $row): ?>
                                                 <tr>
                                                     <td class="text-center"><?php echo $no++; ?></td>
                                                     <td><?php echo htmlspecialchars($row['nama']); ?></td>
@@ -851,7 +1083,7 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                                             <?php endforeach; ?>
                                         <?php else: ?>
                                             <tr>
-                                                <td colspan="4" class="text-center">Tidak ada data petugas.</td>
+                                                <td colspan="3" class="text-center">Tidak ada data petugas.</td>
                                             </tr>
                                         <?php endif; ?>
                                     </tbody>
@@ -873,9 +1105,6 @@ if (isset($_GET['aksi']) && $_GET['aksi'] == 'unduh_csv_DatPetugas') {
                         </div>
                     </div>
                 </div>
-
-
-
 
                 <script>
                     $(document).ready(function() {

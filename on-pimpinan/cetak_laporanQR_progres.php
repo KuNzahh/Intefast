@@ -17,15 +17,17 @@ $nama_bulan = [
     '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-$where_clause = "WHERE 1=1";
+// Filter query
+$where = [];
 if ($filter_jenis != 'semua') {
-    $where_clause .= " AND jenis = '".mysqli_real_escape_string($conn, $filter_jenis)."'";
+    $where[] = "jenis = '".mysqli_real_escape_string($conn, $filter_jenis)."'";
 }
 if (!empty($filter_bulan)) {
-    $where_clause .= " AND DATE_FORMAT(tanggal_pengajuan, '%Y-%m') = '$tahun_sekarang-$filter_bulan'";
+    $where[] = "DATE_FORMAT(tanggal_pengajuan, '%Y-%m') = '$tahun_sekarang-$filter_bulan'";
 }
+$where_clause = $where ? "WHERE ".implode(" AND ", $where) : "";
 
-// Ambil data progres pengajuan
+// Query data progres pengajuan
 $sql_progres_pengajuan = "
 SELECT * FROM (
     SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan AS tanggal_update, 'SKCK' AS jenis, s.progres
@@ -40,19 +42,16 @@ SELECT * FROM (
 $where_clause
 ORDER BY tanggal_update DESC
 ";
-
 $result_progres = mysqli_query($conn, $sql_progres_pengajuan);
 $data_progres = mysqli_fetch_all($result_progres, MYSQLI_ASSOC);
 
-// Ambil nama pimpinan dari database (personil_satintel dengan jabatan KASAT INTELKAM terbaru)
+// Data pimpinan
 $nama_pimpinan = "";
-$jabatan_pimpinan = "";
 $nrp_pimpinan = "";
-$query_pimpinan = "SELECT nama, jabatan, nrp FROM personil_satintel WHERE jabatan LIKE '%KASAT INTELKAM%' ORDER BY id_personil DESC LIMIT 1";
+$query_pimpinan = "SELECT nama, nrp FROM personil_satintel WHERE jabatan LIKE '%KASAT INTELKAM%' ORDER BY id_personil DESC LIMIT 1";
 $result_pimpinan = mysqli_query($conn, $query_pimpinan);
 if ($row_pimpinan = mysqli_fetch_assoc($result_pimpinan)) {
     $nama_pimpinan = $row_pimpinan['nama'];
-    $jabatan_pimpinan = $row_pimpinan['jabatan'];
     $nrp_pimpinan = $row_pimpinan['nrp'];
 }
 $tanggal_ttd = date('d-m-Y');
@@ -90,17 +89,71 @@ class PDF extends FPDF
         }
         
         $this->SetFont('Arial','B',12);
-        $judul = 'Laporan Data Status Progres Pengajuan Permohonan';
+        $judul = 'Laporan Data Status Pengajuan Permohonan Administrasi';
         global $filter_jenis, $filter_bulan, $nama_bulan, $tahun_sekarang;
+        $this->Cell(0,10,$judul,0,1,'C');
+
+        // Paragraf penjelas
+        $jumlah_data = isset($GLOBALS['data_progres']) ? count($GLOBALS['data_progres']) : 0;
+        $paragraf = "Laporan Rekapitulasi Status Pengajuan pada Satuan Intelkam Polres Barito Kuala";
+        $jenis_text = '';
+        $bulan_text = '';
+        $tahun_text = '';
         if ($filter_jenis != 'semua') {
-            $judul .= " (Jenis: " . $filter_jenis . ")";
+            $jenis_text = strtoupper($filter_jenis);
         }
         if (!empty($filter_bulan)) {
-            $judul .= " (Bulan: " . $nama_bulan[intval($filter_bulan)] . ")";
-        } else {
-            $judul .= " (Tahun: " . $tahun_sekarang . ")";
+            $bulan_text = $nama_bulan[intval($filter_bulan)];
         }
-        $this->Cell(0,10,$judul,0,1,'C');
+        $tahun_text = $tahun_sekarang;
+
+        $this->SetFont('Arial','',9);
+        $this->Write(8, $paragraf);
+
+        if ($jenis_text && $bulan_text) {
+            $this->Write(8, " Jenis ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $jenis_text);
+            $this->SetFont('Arial','',9);
+            $this->Write(8, " Bulan ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $bulan_text);
+            $this->SetFont('Arial','',9);
+            $this->Write(8, " Tahun ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $tahun_text);
+            $this->SetFont('Arial','',9);
+        } elseif ($jenis_text) {
+            $this->Write(8, " Jenis ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $jenis_text);
+            $this->SetFont('Arial','',9);
+            $this->Write(8, " Tahun ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $tahun_text);
+            $this->SetFont('Arial','',9);
+        } elseif ($bulan_text) {
+            $this->Write(8, " Bulan ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $bulan_text);
+            $this->SetFont('Arial','',9);
+            $this->Write(8, " Tahun ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $tahun_text);
+            $this->SetFont('Arial','',9);
+        } else {
+            $this->Write(8, " Tahun ");
+            $this->SetFont('Arial','B',9);
+            $this->Write(8, $tahun_text);
+            $this->SetFont('Arial','',9);
+        }
+        $this->SetFont('Arial','',9);
+        $this->Write(8, ". Jumlah permohonan: ");
+        $this->SetFont('Arial','B',9);
+        $this->Write(8, $jumlah_data);
+        $this->SetFont('Arial','',9);
+        $this->Write(8, ".");
+        $this->Ln(10);
     }
 
     function Footer()
@@ -171,12 +224,6 @@ class PDF extends FPDF
 
     function TabelProgres($header, $data)
     {
-        $this->SetFillColor(255,255,255);
-        $this->SetTextColor(0);
-        $this->SetDrawColor(0,0,0);
-        $this->SetLineWidth(.3);
-        $this->SetFont('','');
-
         $w = array(10, 40, 25, 30, 75);
         $this->SetFont('Arial','B',10);
         for($i=0;$i<count($header);$i++)
@@ -184,17 +231,15 @@ class PDF extends FPDF
         $this->Ln();
 
         $this->SetFont('Arial','',10);
-        $fill = 0;
         $no = 1;
         foreach($data as $row)
         {
-            $this->Cell($w[0],6,$no++,'1',0,'C',$fill);
-            $this->Cell($w[1],6,$row['nama_pemohon'],'1',0,'L',$fill);
-            $this->Cell($w[2],6,$row['jenis'],'1',0,'C',$fill);
-            $this->Cell($w[3],6,date('d-m-Y', strtotime($row['tanggal_update'])),'1',0,'C',$fill);
-            $this->Cell($w[4],6,$row['progres'],'1',0,'L',$fill);
+            $this->Cell($w[0],6,$no++,'1',0,'C');
+            $this->Cell($w[1],6,$row['nama_pemohon'],'1',0,'L');
+            $this->Cell($w[2],6,$row['jenis'],'1',0,'C');
+            $this->Cell($w[3],6,date('d-m-Y', strtotime($row['tanggal_update'])),'1',0,'C');
+            $this->Cell($w[4],6,$row['progres'],'1',0,'L');
             $this->Ln();
-            $fill=!$fill;
         }
         $this->Cell(array_sum($w),0,'','T');
     }

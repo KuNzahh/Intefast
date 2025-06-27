@@ -213,13 +213,19 @@ $nama_bulan = [
                                             <th>Tanggal Pengajuan</th>
                                             <th>Jenis Permohonan</th>
                                             <th>Detail</th>
-                                            <th>Progres</th>
+                                            <th>Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($data_tampil)): ?>
-                                            <?php $no = 1; ?>
-                                            <?php foreach ($data_tampil as $row): ?>
+                                        <?php
+                                        $no = 1;
+                                        $ada_data = false;
+                                        if (!empty($data_tampil)):
+                                            foreach ($data_tampil as $row):
+                                                // Hanya tampilkan progres "diterima"
+                                                if (strtolower($row['progres']) === 'diterima'):
+                                                    $ada_data = true;
+                                        ?>
                                                 <tr>
                                                     <td class="text-center"><?php echo $no++; ?></td>
                                                     <td><?php echo htmlspecialchars($row['nama_pemohon']); ?></td>
@@ -228,10 +234,14 @@ $nama_bulan = [
                                                     <td><?php echo $row['detail']; ?></td>
                                                     <td class="text-center"><?php echo htmlspecialchars(ucfirst($row['progres'])); ?></td>
                                                 </tr>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
+                                        <?php
+                                                endif;
+                                            endforeach;
+                                        endif;
+                                        if (!$ada_data):
+                                        ?>
                                             <tr>
-                                                <td colspan="6" class="text-center">Tidak ada data permohonan.</td>
+                                                <td colspan="6" class="text-center">Tidak ada data permohonan yang diterima.</td>
                                             </tr>
                                         <?php endif; ?>
                                     </tbody>

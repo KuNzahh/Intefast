@@ -9,6 +9,9 @@ if (!isset($_SESSION['user_id'])) {
 }
 $user_id = $_SESSION['user_id'];
 
+
+
+
 $survey_submitted = false; // Tambahkan flag untuk menandai apakah survei sudah dikirim
 
 // Proses pengiriman survei
@@ -32,7 +35,10 @@ if (isset($_POST['submit_survey'])) {
                                         '" . $responses['q9'] . "', '" . $responses['q10'] . "')";
 
         if (mysqli_query($conn, $sql_insert_survey)) {
-            $survey_submitted = true; // Set flag menjadi true jika berhasil
+            $_SESSION['success'] = 'Terima kasih! Survei Anda telah dimasukkan.';
+            $survey_submitted = true; // Set flag ke true jika survei berhasil dikirim
+            header("Location: survey.php");
+            exit();
         } else {
             $_SESSION['error'] = "Terjadi kesalahan saat menyimpan jawaban survei: " . mysqli_error($conn);
             header("Location: survey.php");
@@ -381,15 +387,26 @@ endif;
     </footer>
     <?php include 'script.php'; ?>
 
-    <?php if ($survey_submitted): ?>
+    <?php
+    if (isset($_SESSION['error'])): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?= $_SESSION['error']; ?>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    <?php unset($_SESSION['error']);
+    endif; ?>
+
+    <?php
+    if (isset($_SESSION['success'])): ?>
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                alert('Terima kasih! Survei Anda telah dimasukkan.');
-                // Redirect atau lakukan tindakan lain setelah menampilkan popup
-                window.location.href = 'survey.php'; // Contoh: reload halaman
-            });
+            alert("<?= $_SESSION['success']; ?>");
+            window.location.href = 'dashboard.php';
         </script>
-    <?php endif; ?>
+    <?php unset($_SESSION['success']);
+    endif; ?>
+
 
 </body>
 

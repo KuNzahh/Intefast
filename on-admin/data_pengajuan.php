@@ -27,9 +27,10 @@ $result_sik = mysqli_query($conn, $sql_sik);
 $data_sik = mysqli_fetch_all($result_sik, MYSQLI_ASSOC);
 
 // Ambil data pengajuan STTP
-$sql_sttp = "SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, s.nama_paslon, s.nama_kampanye, s.progres, s.id_sttp
+$sql_sttp = "SELECT u.nama AS nama_pemohon, s.tanggal_pengajuan, s.nama_paslon, k.nama_kampanye, s.progres, s.id_sttp
              FROM sttp s
              JOIN users u ON s.user_id = u.id_user
+             JOIN kampanye k ON s.kampanye_id = k.id_kampanye
              ORDER BY s.tanggal_pengajuan DESC";
 $result_sttp = mysqli_query($conn, $sql_sttp);
 $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
@@ -101,7 +102,7 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
                                         </div>
                                         <div class="col-md-4 align-self-end mb-3">
                                             <button type="submit" class="btn btn-primary"><i class="fas fa-filter me-2"></i>Filter</button>
-                                            <a href="data_pegajuan.php" class="btn btn-secondary"><i class="fas fa-undo me-2"></i>Reset Filter</a>
+                                            <a href="data_pengajuan.php" class="btn btn-secondary"><i class="fas fa-undo me-2"></i>Reset Filter</a>
                                         </div>
                                     </div>
                                 </form>
@@ -117,145 +118,152 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
                             </div>
                             <div class="card-body table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabelPermohonan">
-                                    <thead class="table-primary text-center">
+                                    <thead class="table-primary text-center align-middle">
                                         <tr>
-                                            <th>No</th>
-                                            <th>Jenis Permohonan</th>
+                                            <th style="width: 50px;">No</th>
+                                            <th style="width: 160px;">Jenis Permohonan</th>
                                             <th>Nama Pemohon</th>
-                                            <th>Tanggal Pengajuan</th>
+                                            <th style="width: 140px;">Tanggal Pengajuan</th>
                                             <th>Detail</th>
-                                            <th>Status</th>
-                                            <th>Aksi</th>
+                                            <th style="width: 120px;">Status</th>
+                                            <th style="width: 120px;">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php
-                                        $no = 1;
+                                        // Pagination setup
+                                        $perPage = 10;
+                                        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+                                        if ($page < 1) $page = 1;
+                                        $start = ($page - 1) * $perPage;
+
                                         $jenis_filter = isset($_GET['jenis']) ? $_GET['jenis'] : 'semua';
 
-                                        if ($jenis_filter == 'semua' || $jenis_filter == 'skck'):
-                                            if (!empty($data_skck)):
-                                                foreach ($data_skck as $skck): ?>
-                                                    <tr>
-                                                        <td class="text-center"><?php echo $no++; ?></td>
-                                                        <td class="text-center">SKCK</td>
-                                                        <td><?php echo htmlspecialchars($skck['nama_pemohon']); ?></td>
-                                                        <td class="text-center"><?php echo date('d-m-Y', strtotime($skck['tanggal_pengajuan'])); ?></td>
-                                                        <td>Keperluan: <?php echo htmlspecialchars($skck['keperluan']); ?></td>
-                                                        <td class="text-center">
-                                                            <?php
-                                                            $progres = $skck['progres'];
-                                                            $badge_class = '';
-                                                            if ($progres == 'pengajuan') $badge_class = 'bg-warning text-dark';
-                                                            elseif ($progres == 'penelitian') $badge_class = 'bg-info';
-                                                            elseif ($progres == 'diterima') $badge_class = 'bg-success';
-                                                            elseif ($progres == 'ditolak') $badge_class = 'bg-danger';
-                                                            echo '<span class="badge ' . $badge_class . '">' . htmlspecialchars(ucfirst($progres)) . '</span>';
-                                                            ?>
-                                                        </td>
-                                                        <td class="text-center">
-                                                            <a href="detail_skck.php?id=<?php echo $skck['id_skck']; ?>" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
-                                                            <a href="proses_hapus.php?jenis=skck&id=<?= $skck['id_skck']; ?>" class="btn btn-sm btn-danger"
-                                                                onclick="return confirm('Yakin ingin menghapus data ini?')">
-                                                                <i class="fas fa-trash"></i>
-                                                            </a>
-                                                        </td>
-                                                    </tr>
-                                                <?php endforeach;
-                                            else:
-                                                if ($jenis_filter == 'skck'): ?>
-                                                    <tr>
-                                                        <td colspan="7" class="text-center">Tidak ada data permohonan SKCK.</td>
-                                                    </tr>
-                                                <?php endif;
-                                            endif;
-                                        endif;
+                                        // Gabungkan semua data sesuai filter
+                                        $all_data = [];
+                                        if ($jenis_filter == 'semua' || $jenis_filter == 'skck') {
+                                            foreach ($data_skck as $skck) {
+                                                $all_data[] = [
+                                                    'jenis' => 'SKCK',
+                                                    'nama_pemohon' => $skck['nama_pemohon'],
+                                                    'tanggal_pengajuan' => $skck['tanggal_pengajuan'],
+                                                    'detail' => 'Keperluan: ' . htmlspecialchars($skck['keperluan']),
+                                                    'progres' => $skck['progres'],
+                                                    'id' => $skck['id_skck'],
+                                                    'detail_link' => 'detail_skck.php?id=' . $skck['id_skck'],
+                                                    'hapus_link' => 'proses_hapus.php?jenis=skck&id=' . $skck['id_skck'],
+                                                ];
+                                            }
+                                        }
+                                        if ($jenis_filter == 'semua' || $jenis_filter == 'sik') {
+                                            foreach ($data_sik as $sik) {
+                                                $all_data[] = [
+                                                    'jenis' => 'SIK',
+                                                    'nama_pemohon' => $sik['nama_pemohon'],
+                                                    'tanggal_pengajuan' => $sik['tanggal_pengajuan'],
+                                                    'detail' => 'Instansi: ' . htmlspecialchars($sik['nama_instansi']) . '<br>Penanggung Jawab: ' . htmlspecialchars($sik['penanggung_jawab']),
+                                                    'progres' => $sik['progres'],
+                                                    'id' => $sik['id_sik'],
+                                                    'detail_link' => 'detail_sik.php?id=' . $sik['id_sik'],
+                                                    'hapus_link' => 'proses_hapus.php?jenis=sik&id=' . $sik['id_sik'],
+                                                ];
+                                            }
+                                        }
+                                        if ($jenis_filter == 'semua' || $jenis_filter == 'sttp') {
+                                            foreach ($data_sttp as $sttp) {
+                                                $all_data[] = [
+                                                    'jenis' => 'STTP',
+                                                    'nama_pemohon' => $sttp['nama_pemohon'],
+                                                    'tanggal_pengajuan' => $sttp['tanggal_pengajuan'],
+                                                    'detail' => 'Paslon: ' . htmlspecialchars($sttp['nama_paslon']) . '<br>Kampanye: ' . htmlspecialchars($sttp['nama_kampanye']),
+                                                    'progres' => $sttp['progres'],
+                                                    'id' => $sttp['id_sttp'],
+                                                    'detail_link' => 'detail_sttp.php?id=' . $sttp['id_sttp'],
+                                                    'hapus_link' => 'proses_hapus.php?jenis=sttp&id=' . $sttp['id_sttp'],
+                                                ];
+                                            }
+                                        }
 
-                                        if ($jenis_filter == 'semua' || $jenis_filter == 'sik'):
-                                            if (!empty($data_sik)):
-                                                foreach ($data_sik as $sik): ?>
-                                                    <tr>
-                                                        <td class="text-center"><?php echo $no++; ?></td>
-                                                        <td class="text-center">SIK</td>
-                                                        <td><?php echo htmlspecialchars($sik['nama_pemohon']); ?></td>
-                                                        <td class="text-center"><?php echo date('d-m-Y', strtotime($sik['tanggal_pengajuan'])); ?></td>
-                                                        <td>Paslon: <?php echo htmlspecialchars($sik['nama_instansi']); ?><br>Kampanye: <?php echo htmlspecialchars($sik['penanggung_jawab']); ?></td>
-                                                        <td class="text-center">
-                                                            <?php
-                                                            $progres = $sik['progres'];
-                                                            $badge_class = '';
-                                                            if ($progres == 'pengajuan') $badge_class = 'bg-warning text-dark';
-                                                            elseif ($progres == 'penelitian') $badge_class = 'bg-info';
-                                                            elseif ($progres == 'diterima') $badge_class = 'bg-success';
-                                                            elseif ($progres == 'ditolak') $badge_class = 'bg-danger';
-                                                            echo '<span class="badge ' . $badge_class . '">' . htmlspecialchars(ucfirst($progres)) . '</span>';
-                                                            ?>
-                                                        </td>
-                                                        <td class="text-center">
-                                                            <a href="detail_sik.php?id=<?php echo $sik['id_sik']; ?>" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
-                                                            <a href="proses_hapus.php?jenis=sik&id=<?= $sik['id_sik']; ?>" class="btn btn-sm btn-danger"
-                                                                onclick="return confirm('Yakin ingin menghapus data ini?')">
-                                                                <i class="fas fa-trash"></i>
-                                                            </a>
+                                        // Urutkan berdasarkan tanggal_pengajuan DESC
+                                        usort($all_data, function ($a, $b) {
+                                            return strtotime($b['tanggal_pengajuan']) - strtotime($a['tanggal_pengajuan']);
+                                        });
 
-                                                        </td>
-                                                    </tr>
-                                                <?php endforeach;
-                                            else:
-                                                if ($jenis_filter == 'sik'): ?>
-                                                    <tr>
-                                                        <td colspan="7" class="text-center">Tidak ada data permohonan SIK.</td>
-                                                    </tr>
-                                                <?php endif;
-                                            endif;
-                                        endif;
+                                        $totalRows = count($all_data);
+                                        $totalPages = ceil($totalRows / $perPage);
 
-                                        if ($jenis_filter == 'semua' || $jenis_filter == 'sttp'):
-                                            if (!empty($data_sttp)):
-                                                foreach ($data_sttp as $sttp): ?>
-                                                    <tr>
-                                                        <td class="text-center"><?php echo $no++; ?></td>
-                                                        <td class="text-center">STTP</td>
-                                                        <td><?php echo htmlspecialchars($sttp['nama_pemohon']); ?></td>
-                                                        <td class="text-center"><?php echo date('d-m-Y', strtotime($sttp['tanggal_pengajuan'])); ?></td>
-                                                        <td>Paslon: <?php echo htmlspecialchars($sttp['nama_paslon']); ?><br>Kampanye: <?php echo htmlspecialchars($sttp['nama_kampanye']); ?></td>
-                                                        <td class="text-center">
-                                                            <?php
-                                                            $progres = $sttp['progres'];
-                                                            $badge_class = '';
-                                                            if ($progres == 'pengajuan') $badge_class = 'bg-warning text-dark';
-                                                            elseif ($progres == 'penelitian') $badge_class = 'bg-info';
-                                                            elseif ($progres == 'diterima') $badge_class = 'bg-success';
-                                                            elseif ($progres == 'ditolak') $badge_class = 'bg-danger';
-                                                            echo '<span class="badge ' . $badge_class . '">' . htmlspecialchars(ucfirst($progres)) . '</span>';
-                                                            ?>
-                                                        </td>
-                                                        <td class="text-center">
-                                                            <a href="detail_sttp.php?id=<?php echo $sttp['id_sttp']; ?>" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
-                                                            <a href="proses_hapus.php?jenis=sttp&id=<?= $sttp['id_sttp']; ?>" class="btn btn-sm btn-danger"
-                                                                onclick="return confirm('Yakin ingin menghapus data ini?')">
-                                                                <i class="fas fa-trash"></i>
-                                                            </a>
-                                                        </td>
-                                                    </tr>
-                                                <?php endforeach;
-                                            else:
-                                                if ($jenis_filter == 'sttp'): ?>
-                                                    <tr>
-                                                        <td colspan="7" class="text-center">Tidak ada data permohonan STTP.</td>
-                                                    </tr>
-                                            <?php endif;
-                                            endif;
-                                        endif;
+                                        $data_page = array_slice($all_data, $start, $perPage);
 
-                                        if ($jenis_filter == 'semua' && empty($data_skck) && empty($data_sik) && empty($data_sttp)): ?>
+                                        $no = $start + 1;
+                                        if (!empty($data_page)) {
+                                            foreach ($data_page as $row) {
+                                                // Badge class
+                                                $progres = $row['progres'];
+                                                $badge_class = '';
+                                                if ($progres == 'pengajuan') $badge_class = 'bg-warning text-dark';
+                                                elseif ($progres == 'penelitian') $badge_class = 'bg-info';
+                                                elseif ($progres == 'diterima') $badge_class = 'bg-success';
+                                                elseif ($progres == 'ditolak') $badge_class = 'bg-danger';
+                                        ?>
+                                                <tr>
+                                                    <td class="text-center"><?= $no++; ?></td>
+                                                    <td class="text-center"><?= $row['jenis']; ?></td>
+                                                    <td><?= htmlspecialchars($row['nama_pemohon']); ?></td>
+                                                    <td class="text-center"><?= date('d-m-Y', strtotime($row['tanggal_pengajuan'])); ?></td>
+                                                    <td><?= $row['detail']; ?></td>
+                                                    <td class="text-center">
+                                                        <span class="badge <?= $badge_class; ?>"><?= htmlspecialchars(ucfirst($progres)); ?></span>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <a href="<?= $row['detail_link']; ?>" class="btn btn-sm btn-info" title="Lihat Detail"><i class="fas fa-eye"></i></a>
+                                                        <a href="javascript:void(0);" class="btn btn-sm btn-danger" onclick="hapusPermohonan('<?= $row['hapus_link']; ?>')" title="Hapus">
+                                                            <i class="fas fa-trash"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            <?php
+                                            }
+                                        } else {
+                                            ?>
                                             <tr>
                                                 <td colspan="7" class="text-center">Tidak ada data permohonan.</td>
                                             </tr>
-                                        <?php endif;
+                                        <?php
+                                        }
                                         ?>
                                     </tbody>
                                 </table>
+                                <!-- Pagination Preview -->
+                                <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap">
+                                    <div>
+                                        <small>
+                                            Menampilkan
+                                            <b><?= ($totalRows == 0) ? 0 : ($start + 1); ?></b>
+                                            -
+                                            <b><?= ($totalRows == 0) ? 0 : min($start + $perPage, $totalRows); ?></b>
+                                            dari <b><?= $totalRows; ?></b> data
+                                        </small>
+                                    </div>
+                                    <nav>
+                                        <ul class="pagination mb-0">
+                                            <?php if ($page > 1): ?>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?jenis=<?= $jenis_filter; ?>&page=<?= $page - 1; ?>">Sebelumnya</a>
+                                                </li>
+                                            <?php endif; ?>
+                                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                                                <li class="page-item <?= ($i == $page) ? 'active' : ''; ?>">
+                                                    <a class="page-link" href="?jenis=<?= $jenis_filter; ?>&page=<?= $i; ?>"><?= $i; ?></a>
+                                                </li>
+                                            <?php endfor; ?>
+                                            <?php if ($page < $totalPages): ?>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?jenis=<?= $jenis_filter; ?>&page=<?= $page + 1; ?>">Berikutnya</a>
+                                                </li>
+                                            <?php endif; ?>
+                                        </ul>
+                                    </nav>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -265,6 +273,7 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
         <div class="scrollToTop">
             <span class="arrow"><i class="fe fe-arrow-up"></i></span>
         </div>
+
         <div id="responsive-overlay"></div>
         <footer class="footer mt-auto py-3 bg-white text-center">
             <div class="container">
@@ -273,7 +282,48 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
         </footer>
         <?php include 'script.php'; ?>
 
+
+
         <script>
+            function hapusPermohonan(hapusUrl) {
+                // Cek apakah modal sudah ada
+                let modal = document.getElementById('modalHapusPermohonan');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.innerHTML = `
+            <div class="modal fade" id="modalHapusPermohonan" tabindex="-1" aria-labelledby="modalHapusPermohonanLabel" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header bg-danger">
+                    <h5 class="modal-title text-white" id="modalHapusPermohonanLabel">Konfirmasi Hapus</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    Apakah Anda yakin ingin menghapus data permohonan ini?
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-danger" id="btnKonfirmasiHapusPermohonan">Hapus</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+        `;
+                    document.body.appendChild(modal);
+                }
+
+                // Tampilkan modal
+                var bsModal = new bootstrap.Modal(document.getElementById('modalHapusPermohonan'));
+                bsModal.show();
+
+                // Set event tombol hapus
+                document.getElementById('btnKonfirmasiHapusPermohonan').onclick = function() {
+                    window.location = hapusUrl;
+                };
+            }
+        </script>
+
+        <script src="../assets/plugins/jquery/jquery.min.js">
             $(document).ready(function() {
                 $('#tabelPermohonan').DataTable({
                     "language": {

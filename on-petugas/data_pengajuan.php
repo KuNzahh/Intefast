@@ -115,6 +115,35 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-light">
                                 <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Data Permohonan</h5>
+                                <!-- Fitur Pencarian -->
+                                <form class="d-flex ms-auto" method="GET" style="max-width: 350px;">
+                                    <?php
+                                        // Pertahankan filter jenis jika ada
+                                        $jenis_val = isset($_GET['jenis']) ? htmlspecialchars($_GET['jenis']) : 'semua';
+                                        $search_val = isset($_GET['cari']) ? htmlspecialchars($_GET['cari']) : '';
+                                    ?>
+                                    <input type="hidden" name="jenis" value="<?php echo $jenis_val; ?>">
+                                    <input class="form-control me-2" type="search" name="cari" placeholder="Cari nama pemohon..." value="<?php echo $search_val; ?>">
+                                    <button class="btn btn-outline-primary" type="submit"><i class="fas fa-search"></i></button>
+                                </form>
+                                <?php
+                                // Filter data berdasarkan pencarian jika ada
+                                if (isset($_GET['cari']) && trim($_GET['cari']) !== '') {
+                                    $cari = strtolower(trim($_GET['cari']));
+                                    // Filter SKCK
+                                    $data_skck = array_filter($data_skck, function($item) use ($cari) {
+                                        return strpos(strtolower($item['nama_pemohon']), $cari) !== false;
+                                    });
+                                    // Filter SIK
+                                    $data_sik = array_filter($data_sik, function($item) use ($cari) {
+                                        return strpos(strtolower($item['nama_pemohon']), $cari) !== false;
+                                    });
+                                    // Filter STTP
+                                    $data_sttp = array_filter($data_sttp, function($item) use ($cari) {
+                                        return strpos(strtolower($item['nama_pemohon']), $cari) !== false;
+                                    });
+                                }
+                                ?>
                             </div>
                             <div class="card-body table-responsive">
                                 <table class="table table-bordered table-striped align-middle" id="tabelPermohonan">
@@ -124,7 +153,7 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
                                             <th>Jenis Permohonan</th>
                                             <th>Nama Pemohon</th>
                                             <th>Tanggal Pengajuan</th>
-                                            <th>Detail</th>
+                                            <th>Umum</th>
                                             <th>Status</th>
                                             <th>Aksi</th>
                                         </tr>
@@ -180,7 +209,7 @@ $data_sttp = mysqli_fetch_all($result_sttp, MYSQLI_ASSOC);
                                                         <td class="text-center">SIK</td>
                                                         <td><?php echo htmlspecialchars($sik['nama_pemohon']); ?></td>
                                                         <td class="text-center"><?php echo date('d-m-Y', strtotime($sik['tanggal_pengajuan'])); ?></td>
-                                                        <td>Paslon: <?php echo htmlspecialchars($sik['nama_instansi']); ?><br>Penanggung Jawab: <?php echo htmlspecialchars($sik['penanggung_jawab']); ?></td>
+                                                        <td>Instansi: <?php echo htmlspecialchars($sik['nama_instansi']); ?><br>Penanggung Jawab: <?php echo htmlspecialchars($sik['penanggung_jawab']); ?></td>
                                                         <td class="text-center">
                                                             <?php
                                                             $progres = $sik['progres'];
